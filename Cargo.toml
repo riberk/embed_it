@@ -1,0 +1,12 @@
+[workspace]
+members = ["include_assets", "macros"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.80"
+license = "MIT"
+readme = "README.md"
+version = "1.4.21"
+authors = ["Pavel Kurdikov <riberk32@gmail.com>"]
+repository = "https://github.com/riberk/include_assets"

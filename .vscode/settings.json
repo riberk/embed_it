@@ -1,0 +1,12 @@
+{
+    "workbench.colorTheme": "Default Light Modern",
+    "rust-analyzer.linkedProjects": [
+        "./Cargo.toml",
+    ],
+    "rust-analyzer.cargo.features": "all",
+    "rust-analyzer.check.command": "clippy",
+    "github.gitAuthentication": false,
+    "git.terminalAuthentication": false,
+    "todo-tree.regex.regex": "((//|#|<!--|;|/\\*|^)\\s*($TAGS)|^\\s*- \\[ \\]|todo!\\()",
+    
+}

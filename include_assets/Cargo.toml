@@ -1,0 +1,13 @@
+[package]
+name = "include_assets"
+
+edition = {workspace = true}
+rust-version = {workspace = true}
+license = {workspace = true}
+readme = {workspace = true}
+version = {workspace = true}
+authors = {workspace = true}
+repository = {workspace = true}
+
+[dependencies]
+macros = { path = "../macros" }
