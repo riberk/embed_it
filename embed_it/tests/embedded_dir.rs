@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use include_assets::{Assets, EmbeddedDir, EmbeddedEntry, EmbeddedFile};
+use embed_it::{Embed, EmbeddedDir, EmbeddedEntry, EmbeddedFile};
 
-#[derive(Assets)]
-#[assets(path = "$CARGO_MANIFEST_DIR/assets")]
+#[derive(Embed)]
+#[embed(path = "$CARGO_MANIFEST_DIR/assets")]
 pub struct Assets;
 
 mod tests {

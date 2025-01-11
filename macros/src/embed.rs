@@ -18,8 +18,8 @@ use unicode_ident::{is_xid_continue, is_xid_start};
 const REPLACEMENT_IDENT_CHAR: char = '_';
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(attributes(assets), supports(struct_unit))]
-pub struct EmbeddedDirInput {
+#[darling(attributes(embed), supports(struct_unit))]
+pub struct EmbedInput {
     path: String,
     with_extensions: Option<bool>,
 }
@@ -39,12 +39,12 @@ impl Entry {
     }
 }
 
-pub(crate) fn impl_assets(
+pub(crate) fn impl_embed(
     input: DeriveInput,
 ) -> Result<proc_macro2::TokenStream, syn::Error> {
     let main_struct_ident = &input.ident;
 
-    let input = EmbeddedDirInput::from_derive_input(&input)?;
+    let input = EmbedInput::from_derive_input(&input)?;
 
     let root = expand_and_canonicalize(&input.path, get_env).map_err(|e| {
         Error::new_spanned(
@@ -82,7 +82,7 @@ pub(crate) fn impl_assets(
     let stream = quote! {
         impl #main_struct_ident {
             pub fn instance() -> &'static #mod_ident::#struct_ident<'static> {
-                <#mod_ident::#struct_ident as ::include_assets::Instance>::instance()
+                <#mod_ident::#struct_ident as ::embed_it::Instance>::instance()
             }
         }
         pub mod #mod_ident {
@@ -139,7 +139,7 @@ fn generate_struct_and_module(
 
                 methods.extend(quote! {
                     pub fn #field_ident(&self) -> &#field_ident::#struct_ident<'data> {
-                        <#field_ident::#struct_ident as ::include_assets::Instance>::instance()
+                        <#field_ident::#struct_ident as ::embed_it::Instance>::instance()
                     }
                 });
                 let module_stream =
@@ -152,7 +152,7 @@ fn generate_struct_and_module(
                 });
 
                 by_index.extend(quote! {
-                    #idx => Some(::include_assets::EmbeddedEntry::Dir(self.#field_ident())),
+                    #idx => Some(::embed_it::EmbeddedEntry::Dir(self.#field_ident())),
                 });
 
                 debug.extend(quote! {
@@ -161,20 +161,20 @@ fn generate_struct_and_module(
             }
             Entry::File(_) => {
                 fields.extend(quote! {
-                    #field_ident: ::include_assets::EmbeddedFile<'data>,
+                    #field_ident: ::embed_it::EmbeddedFile<'data>,
                 });
 
                 methods.extend(quote! {
-                    pub fn #field_ident(&self) -> &::include_assets::EmbeddedFile<'data> {
+                    pub fn #field_ident(&self) -> &::embed_it::EmbeddedFile<'data> {
                         &self.#field_ident
                     }
                 });
                 by_index.extend(quote! {
-                    #idx => Some(::include_assets::EmbeddedEntry::File(self.#field_ident())),
+                    #idx => Some(::embed_it::EmbeddedEntry::File(self.#field_ident())),
                 });
 
                 data_fields.extend(quote! {
-                    #field_ident: ::include_assets::EmbeddedFile::new(::std::path::Path::new(#relative_path), include_bytes!(#absolute_path)),
+                    #field_ident: ::embed_it::EmbeddedFile::new(::std::path::Path::new(#relative_path), include_bytes!(#absolute_path)),
                 });
 
                 debug.extend(quote! {
@@ -226,23 +226,23 @@ fn generate_struct_and_module(
             ]),
         });
 
-        impl ::include_assets::Instance<'static> for #struct_ident<'static> {
+        impl ::embed_it::Instance<'static> for #struct_ident<'static> {
             fn instance() -> &'static Self {
                 &#data_ident
             }
         }
 
-        impl<'data> ::include_assets::EmbeddedDir<'data> for #struct_ident<'data> {
+        impl<'data> ::embed_it::EmbeddedDir<'data> for #struct_ident<'data> {
             fn path(&self) -> &'data ::std::path::Path {
                 ::std::path::Path::new(#relative_path)
             }
 
-            fn entries(&self) -> ::include_assets::DirEntries<'_, 'data> {
-                ::include_assets::DirEntries::new(self)
+            fn entries(&self) -> ::embed_it::DirEntries<'_, 'data> {
+                ::embed_it::DirEntries::new(self)
             }
 
 
-            fn by_index(&self, idx: usize) -> Option<::include_assets::EmbeddedEntry<'_, 'data>> {
+            fn by_index(&self, idx: usize) -> Option<::embed_it::EmbeddedEntry<'_, 'data>> {
                 match idx {
                     #by_index
                     _ => None,
@@ -257,8 +257,8 @@ fn generate_struct_and_module(
                 &self.#index_field_ident
             }
 
-            fn get(&self, path: &::std::path::Path) -> Option<::include_assets::EmbeddedEntry<'_, 'data>> {
-                ::include_assets::get_from_dir(self, path)
+            fn get(&self, path: &::std::path::Path) -> Option<::embed_it::EmbeddedEntry<'_, 'data>> {
+                ::embed_it::get_from_dir(self, path)
             }
         }
 
@@ -450,10 +450,10 @@ pub mod tests {
         sync::OnceLock,
     };
 
-    use crate::embedded_dir::{make_struct_ident, ExpandPathError};
+    use crate::embed::{make_struct_ident, ExpandPathError};
 
     use super::{
-        expand_and_canonicalize, generate_struct_and_module, impl_assets, EntryPath,
+        expand_and_canonicalize, generate_struct_and_module, impl_embed, EntryPath,
         NormalizePathError,
     };
     use pretty_assertions::assert_eq;
@@ -792,11 +792,11 @@ pub mod tests {
         let path = current_dir.to_str().unwrap();
 
         let input = derive_input(quote! {
-            #[derive(Assets)]
-            #[assets(path = #path)]
+            #[derive(Embed)]
+            #[embed(path = #path)]
             pub struct Assets;
         });
 
-        impl_assets(input).print_to_std_out();
+        impl_embed(input).print_to_std_out();
     }
 }

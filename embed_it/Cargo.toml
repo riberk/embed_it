@@ -1,5 +1,5 @@
 [package]
-name = "include_assets"
+name = "embed_it"
 
 edition = {workspace = true}
 rust-version = {workspace = true}
