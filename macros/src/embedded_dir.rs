@@ -64,14 +64,31 @@ pub(crate) fn impl_embedded_dir(
         )
     })?;
 
-    let stream = generate_struct_and_module(main_struct_ident, &entry_path, with_extensions)
-        .map_err(|e| {
+    let mod_name = format!(
+        "{}_data",
+        main_struct_ident.to_string().to_case(Case::Snake)
+    );
+    let mod_ident = Ident::new(&mod_name, Span::call_site());
+    let struct_ident = Ident::new(&mod_name.to_case(Case::Pascal), Span::call_site());
+
+    let stream =
+        generate_struct_and_module(&struct_ident, &entry_path, with_extensions).map_err(|e| {
             Error::new_spanned(
-                main_struct_ident,
+                &struct_ident,
                 format!("Unable to generate main struct: {:#?}", e),
             )
         })?;
 
+    let stream = quote! {
+        impl #main_struct_ident {
+            pub fn instance() -> &'static #mod_ident::#struct_ident<'static> {
+                <#mod_ident::#struct_ident as ::include_assets::Instance>::instance()
+            }
+        }
+        pub mod #mod_ident {
+            #stream
+        }
+    };
     Ok(stream)
 }
 
@@ -391,7 +408,7 @@ fn expand_and_canonicalize(
         Ok(value)
     };
     let path = replace_all(&re, input, replacement)?;
-    fs::canonicalize(path).map_err(ExpandPathError::Fs)
+    fs::canonicalize(&path).map_err(|e| ExpandPathError::Fs(path.clone(), e))
 }
 
 fn replace_all<E>(
@@ -414,7 +431,7 @@ fn replace_all<E>(
 #[derive(Debug)]
 pub enum ExpandPathError {
     Env(#[allow(dead_code)] String, #[allow(dead_code)] VarError),
-    Fs(#[allow(dead_code)] io::Error),
+    Fs(#[allow(dead_code)] String, #[allow(dead_code)] io::Error),
 }
 
 fn get_env(variable: &str) -> Result<String, VarError> {
@@ -424,12 +441,13 @@ fn get_env(variable: &str) -> Result<String, VarError> {
 #[cfg(test)]
 pub mod tests {
     use std::{
-        env::{self, VarError},
+        env::VarError,
         ffi::OsString,
-        fs::{self, create_dir_all, remove_dir_all},
+        fs::{self, create_dir, create_dir_all, remove_dir_all},
         io::Write,
         os::unix::ffi::OsStringExt,
         path::{Path, PathBuf},
+        sync::OnceLock,
     };
 
     use crate::embedded_dir::{make_struct_ident, ExpandPathError};
@@ -469,6 +487,44 @@ pub mod tests {
                 }
             }
         }
+    }
+
+    fn target_dir() -> &'static Path {
+        static DIR: OnceLock<PathBuf> = OnceLock::new();
+        DIR.get_or_init(|| {
+            let mut dir = None;
+            for candidate_parent in Path::new(
+                &std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is not defined"),
+            )
+            .ancestors()
+            {
+                let candidate = candidate_parent.join("target");
+                if candidate.is_dir() {
+                    dir = Some(candidate);
+                    break;
+                }
+            }
+
+            dir.expect("Unable to find target directory")
+        })
+        .as_path()
+    }
+
+    fn tests_dir() -> &'static Path {
+        static DIR: OnceLock<PathBuf> = OnceLock::new();
+        DIR.get_or_init(|| {
+            let path = target_dir().join("test_data");
+            if !path.exists() {
+                create_dir(&path)
+                    .unwrap_or_else(|e| panic!("Unable to create dir '{path:?}': {e:#?}"));
+            }
+
+            if !path.is_dir() {
+                panic!("'{:?}' dir must be a dir", &path);
+            }
+            path
+        })
+        .as_path()
     }
 
     #[test]
@@ -600,14 +656,17 @@ pub mod tests {
     #[test]
     fn expand_and_canonicalize_pass() {
         let dir_name = "expand_and_canonicalize_pass";
-        let current_dir = env::current_dir().unwrap().join(dir_name);
+        let current_dir = tests_dir().join(dir_name);
         if current_dir.exists() {
             remove_dir_all(&current_dir).unwrap();
         }
         create_dir_all(&current_dir).unwrap();
 
         let res = expand_and_canonicalize(
-            &format!("./{}/../{}/../$DIR/../${{DIR}}", dir_name, dir_name),
+            &format!(
+                "../target/test_data/{}/../{}/../$DIR/../${{DIR}}",
+                dir_name, dir_name
+            ),
             |var| {
                 if var == "DIR" {
                     Ok(dir_name.to_owned())
@@ -616,7 +675,7 @@ pub mod tests {
                 }
             },
         )
-        .unwrap();
+        .unwrap_or_else(|e| panic!("Unable to canonicalize '{e:#?}'"));
 
         assert_eq!(res, current_dir);
     }
@@ -654,7 +713,7 @@ pub mod tests {
     #[test]
     fn check_generate_struct_and_module_simple() {
         let dir_name = "check_generate_struct_and_module_simple";
-        let current_dir = env::current_dir().unwrap().join(dir_name);
+        let current_dir = tests_dir().join(dir_name);
         if current_dir.exists() {
             remove_dir_all(&current_dir).unwrap();
         }
@@ -676,7 +735,7 @@ pub mod tests {
     #[test]
     fn check_macros() {
         let dir_name = "check_macros";
-        let current_dir = env::current_dir().unwrap().join(dir_name);
+        let current_dir = tests_dir().join(dir_name);
         if current_dir.exists() {
             remove_dir_all(&current_dir).unwrap();
         }
