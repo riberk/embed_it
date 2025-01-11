@@ -18,7 +18,7 @@ use unicode_ident::{is_xid_continue, is_xid_start};
 const REPLACEMENT_IDENT_CHAR: char = '_';
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(attributes(embedded_dir), supports(struct_unit))]
+#[darling(attributes(assets), supports(struct_unit))]
 pub struct EmbeddedDirInput {
     path: String,
     with_extensions: Option<bool>,
@@ -39,7 +39,7 @@ impl Entry {
     }
 }
 
-pub(crate) fn impl_embedded_dir(
+pub(crate) fn impl_assets(
     input: DeriveInput,
 ) -> Result<proc_macro2::TokenStream, syn::Error> {
     let main_struct_ident = &input.ident;
@@ -453,7 +453,7 @@ pub mod tests {
     use crate::embedded_dir::{make_struct_ident, ExpandPathError};
 
     use super::{
-        expand_and_canonicalize, generate_struct_and_module, impl_embedded_dir, EntryPath,
+        expand_and_canonicalize, generate_struct_and_module, impl_assets, EntryPath,
         NormalizePathError,
     };
     use pretty_assertions::assert_eq;
@@ -792,11 +792,11 @@ pub mod tests {
         let path = current_dir.to_str().unwrap();
 
         let input = derive_input(quote! {
-            #[derive(EmbeddedDir)]
-            #[embedded_dir(path = #path)]
+            #[derive(Assets)]
+            #[assets(path = #path)]
             pub struct Assets;
         });
 
-        impl_embedded_dir(input).print_to_std_out();
+        impl_assets(input).print_to_std_out();
     }
 }
