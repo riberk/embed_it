@@ -4,13 +4,13 @@ name = "embed_it"
 edition = {workspace = true}
 rust-version = {workspace = true}
 license = {workspace = true}
-readme = {workspace = true}
 version = {workspace = true}
 authors = {workspace = true}
 repository = {workspace = true}
 description = {workspace = true}
 keywords = {workspace = true}
 categories = {workspace = true}
+readme = "README.md"
 
 [dependencies]
 embed_it_macros = { version = "^2.0.4", path = "../macros" }
