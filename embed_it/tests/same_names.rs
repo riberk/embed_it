@@ -1,7 +1,10 @@
 use macros::Embed;
 
 #[derive(Embed)]
-#[embed(path = "$CARGO_MANIFEST_DIR/same_names", with_extensions = true)]
+#[embed(
+    path = "$CARGO_MANIFEST_DIR/../example_dirs/same_names",
+    with_extensions = true
+)]
 pub struct SameNames;
 
 mod tests {

@@ -1,7 +1,7 @@
 use embed_it::Embed;
 
 #[derive(Embed)]
-#[embed(path = "$CARGO_MANIFEST_DIR/assets")]
+#[embed(path = "$CARGO_MANIFEST_DIR/../example_dirs/assets")]
 pub struct Assets;
 
 mod tests {

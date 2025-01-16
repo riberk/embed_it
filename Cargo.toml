@@ -13,6 +13,11 @@ repository = "https://github.com/riberk/embed_it"
 homepage = "https://github.com/riberk/embed_it"
 keywords = ["embed", "include", "static", "assets", "resources"]
 categories = ["filesystem"]
+description = """
+A proc-macro library for to create rust structs from 
+file system entries and include content 
+as a reference to a byte array.
+"""
 
 [workspace.dependencies]
 pretty_assertions = "1"

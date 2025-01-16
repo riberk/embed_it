@@ -18,7 +18,7 @@ You can use a macro to expand it into rust code:
 ```rust
 use embed_it::Embed;
 #[derive(Embed)]
-#[embed(path = "$CARGO_MANIFEST_DIR/assets")]
+#[embed(path = "$CARGO_MANIFEST_DIR/../example_dirs/assets")]
 pub struct Assets;
 
 # fn main() {
@@ -111,7 +111,7 @@ use embed_it::Embed;
 
 #[derive(Embed)]
 #[embed(
-    path = "$CARGO_MANIFEST_DIR/assets",
+    path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
     field(
         // it is a trait method name used to get an instance of a field.
         // you can use your own name for the trait with attribute `trait_name`.
@@ -204,7 +204,7 @@ assert_eq!(Assets.root_children().0, vec!["one_txt", "hello.txt", "one.txt", "wo
 use embed_it::Embed;
 #[derive(Embed)]
 #[embed(
-    path = "$CARGO_MANIFEST_DIR/assets",
+    path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
     dir(
         // trait name for directories (default `Dir`)
         trait_name = AssetsDir, 
@@ -432,7 +432,7 @@ pub struct AsStr;
 impl FileFieldFactory for AsStr {
     type Field = Option<&'static str>;
     fn create<T: File + ?Sized>(data: &T) -> Self::Field {
-        std::str::from_utf8(data.content())
+        std::str::from_utf8(data.content()).ok()
     }
 }
 
