@@ -8,9 +8,12 @@ readme = {workspace = true}
 version = {workspace = true}
 authors = {workspace = true}
 repository = {workspace = true}
+description = {workspace = true}
+keywords = {workspace = true}
+categories = {workspace = true}
 
 [dependencies]
-macros = { version = "^2.0.4", path = "../macros" }
+embed_it_macros = { version = "^2.0.4", path = "../macros" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

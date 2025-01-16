@@ -1,5 +1,5 @@
 [package]
-name = "macros"
+name = "embed_it_macros"
 edition = {workspace = true}
 rust-version = {workspace = true}
 license = {workspace = true}
@@ -7,6 +7,9 @@ readme = {workspace = true}
 version = {workspace = true}
 authors = {workspace = true}
 repository = {workspace = true}
+description = """
+The macros for [`embed_it`]
+"""
 
 [lib]
 proc-macro = true
