@@ -10,7 +10,7 @@ authors = {workspace = true}
 repository = {workspace = true}
 
 [dependencies]
-macros = { path = "../macros" }
+macros = { version = "^2.0.4", path = "../macros" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

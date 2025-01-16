@@ -74,12 +74,12 @@ pub struct Assets;
 
 | **name**    | **trait**               | **dir or file** | **method**                                                          | **purpose**                                                                                                                                                       |
 |-------------|-------------------------|-----------------|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Path**    | [`crate::EntryPath`] | any             |                                                                     | Provides full information about a path of an entry                                                                                                                |
+| **Path**    | [`crate::EntryPath`]    | any             |                                                                     | Provides full information about a path of an entry                                                                                                                |
 | **Entries** | *\<auto generated\>*    | dir             | `fn entries(&self) -> &'static [Entry]`                             | Provides direct children of a dir                                                                                                                                 |
 | **Index**   | *\<auto generated\>*    | dir             | `fn get(&self, path: &::std::path::Path) -> Option<&'static Entry>` | Provides fast access (`HashMap`) to all children (recursively). It constructs hash set on every level dir and might use some memory if there are a lot of entries |
-| **Meta**    | [`crate::Meta`]      | any             |                                                                     | Provides metadata of an entry                                                                                                                                     |
+| **Meta**    | [`crate::Meta`]         | any             |                                                                     | Provides metadata of an entry                                                                                                                                     |
 | **Debug**   | [`std::fmt::Debug`]     | any             |                                                                     | Debugs structs                                                                                                                                                    |
-| **Content** | [`crate::Content`]   | file            |                                                                     | Provides content of a file                                                                                                                                        |
+| **Content** | [`crate::Content`]      | file            |                                                                     | Provides content of a file                                                                                                                                        |
 
 
 
@@ -428,11 +428,11 @@ impl Index for Assets {
 ```rust
 
 // user-defined struct and implementation
-pub struct AsStr(&'static str);
+pub struct AsStr;
 impl FileFieldFactory for AsStr {
-    type Field = Self;
+    type Field = Option<&'static str>;
     fn create<T: File + ?Sized>(data: &T) -> Self::Field {
-        std::str::from_utf8(data.content()).map(AsStr).unwrap()
+        std::str::from_utf8(data.content())
     }
 }
 

@@ -1,5 +1,6 @@
-use std::path::Path;
+use std::{fmt::Display, path::Path};
 
+/// The path of the embedded entry
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EmbeddedPath {
     relative_path: &'static str,
@@ -7,7 +8,14 @@ pub struct EmbeddedPath {
     stem: &'static str,
 }
 
+impl Display for EmbeddedPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.relative_path)
+    }
+}
+
 impl EmbeddedPath {
+    /// Create new instance of [`EmbeddedPath`]
     pub const fn new(relative_path: &'static str, name: &'static str, stem: &'static str) -> Self {
         Self {
             relative_path,
