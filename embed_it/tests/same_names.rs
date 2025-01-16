@@ -1,4 +1,4 @@
-use macros::Embed;
+use embed_it::Embed;
 
 #[derive(Embed)]
 #[embed(
