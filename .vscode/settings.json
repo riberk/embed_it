@@ -5,6 +5,7 @@
     ],
     "rust-analyzer.cargo.features": "all",
     "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.semanticHighlighting.doc.comment.inject.enable": true,
     "github.gitAuthentication": false,
     "git.terminalAuthentication": false,
     "todo-tree.regex.regex": "((//|#|<!--|;|/\\*|^)\\s*($TAGS)|^\\s*- \\[ \\]|todo!\\()",

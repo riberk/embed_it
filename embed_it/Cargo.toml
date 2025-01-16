@@ -11,3 +11,7 @@ repository = {workspace = true}
 
 [dependencies]
 macros = { path = "../macros" }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+

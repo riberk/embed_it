@@ -1,8 +1,9 @@
-mod embedded_dir;
-mod embedded_entry;
-mod embedded_file;
+#![doc = include_str!("../../README.md")]
+mod embedded_path;
+mod metadata;
+mod traits;
 
-pub use embedded_dir::{get_from_dir, DirEntries, EmbeddedDir, Entries, Instance};
-pub use embedded_entry::EmbeddedEntry;
-pub use embedded_file::EmbeddedFile;
+pub use embedded_path::EmbeddedPath;
 pub use macros::Embed;
+pub use metadata::Metadata;
+pub use traits::{Content, EntryPath, Meta};

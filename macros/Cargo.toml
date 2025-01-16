@@ -16,10 +16,15 @@ proc-macro2 = "1"
 quote = "1"
 syn = "2"
 darling = "0.20"
-convert_case = "0.6"
-regex = "1"
+convert_case = "0.7.1"
 unicode-ident = "1"
+regex = { version = "1" }
+strum = "0.26"
+strum_macros = "0.26"
+glob = { version = "0.3"}
 
 [dev-dependencies]
-pretty_assertions = "1"
-prettyplease = "0.2"
+pretty_assertions = { workspace = true }
+prettyplease = {version = "0.2", features = ["verbatim"]}
+
+
