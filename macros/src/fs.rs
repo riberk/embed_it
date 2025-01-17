@@ -228,8 +228,14 @@ impl EntryPath {
 
         let ident = names.next(&ident).into_owned();
 
+        let relative = if cfg!(target_os = "windows") {
+            relative.replace('\\', "/")
+        } else {
+            relative.to_owned()
+        };
+
         Ok(EntryPath {
-            relative: relative.to_owned(),
+            relative,
             ident,
             file_name: file_name.to_owned(),
             file_stem: file_stem.to_owned(),
@@ -307,7 +313,9 @@ mod tests {
         path::{Path, PathBuf},
     };
 
-    use crate::{fs::NormalizePathError, test_helpers::tests_dir, unique_names::UniqueNames};
+    use crate::{
+        fn_name, fs::NormalizePathError, test_helpers::tests_dir, unique_names::UniqueNames,
+    };
 
     use super::{expand_and_canonicalize, EntryPath, ExpandPathError};
 
@@ -434,6 +442,26 @@ mod tests {
     }
 
     #[test]
+    fn normalize_subpath() {
+        let with_ext = true;
+        let root = Path::new("/home/anonymous");
+        let mut names = UniqueNames::default();
+
+        let origin = root.join("a/b/file1.txt");
+        let expected = EntryPath {
+            origin: origin.to_str().unwrap().to_owned(),
+            relative: "a/b/file1.txt".to_owned(),
+            ident: "file1_txt".to_owned(),
+            file_name: "file1.txt".to_owned(),
+            file_stem: "file1".to_owned(),
+        };
+        assert_eq!(
+            EntryPath::normalize(origin, root, with_ext, &mut names).unwrap(),
+            expected
+        );
+    }
+
+    #[test]
     fn normalize_path_empty_path() {
         assert_eq!(
             EntryPath::normalize(
@@ -505,7 +533,7 @@ mod tests {
 
     #[test]
     fn expand_and_canonicalize_pass() {
-        let dir_name = "expand_and_canonicalize_pass";
+        let dir_name = fn_name!();
         let current_dir = tests_dir().join(dir_name);
         if current_dir.exists() {
             remove_dir_all(&current_dir).unwrap();

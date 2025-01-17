@@ -12,7 +12,7 @@ env:
 
 jobs:
   build_and_test:
-    if: github.event.review.state == 'approved'
+    if: github.event_name == 'push' || (github.event_name == 'pull_request_review' && github.event.review.state == 'approved')
     name: Build and test
     runs-on: ${{ matrix.platform }}
     strategy:
@@ -31,7 +31,7 @@ jobs:
       - run: cargo test --verbose --all-features
 
   fmt:
-    if: github.event.review.state == 'approved'
+    if: github.event_name == 'push' || (github.event_name == 'pull_request_review' && github.event.review.state == 'approved')
     name: Latest Dependencies
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -43,10 +43,10 @@ jobs:
       - run: cargo fmt --check --verbose
 
   msrv:
-    if: github.event.review.state == 'approved'
+    if: github.event_name == 'push' || (github.event_name == 'pull_request_review' && github.event.review.state == 'approved')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.80
+      - uses: dtolnay/rust-toolchain@1.81
       - run: cargo build --verbose --all-features
       - run: cargo test --verbose --all-features
