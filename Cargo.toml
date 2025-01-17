@@ -19,4 +19,4 @@ as a reference to a byte array.
 """
 
 [workspace.dependencies]
-pretty_assertions = "1"
+pretty_assertions = "1.4.1"
