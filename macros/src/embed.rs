@@ -648,7 +648,8 @@ mod tests {
 
     #[test]
     fn generation_settings_creation_error_path_does_not_exist() {
-        let current_dir = tests_dir().join(fn_name!());
+        let dir_name = fn_name!();
+        let current_dir = tests_dir().join(dir_name);
         if current_dir.exists() {
             remove_dir_all(&current_dir);
         }
@@ -667,8 +668,8 @@ mod tests {
         let err = GenerationSettings::try_from(input).unwrap_err();
         let err_str = format!("{err:?}");
         assert!(
-            err_str.contains(path_str),
-            "Unable to find path '{path_str:?}' in error debug output '{err_str}'"
+            err_str.contains(dir_name),
+            "Unable to find dir name '{dir_name}' in error debug output '{err_str}'"
         );
     }
 
