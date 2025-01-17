@@ -1106,8 +1106,8 @@ mod tests {
         create_dir_all(current_dir.join("subdir.txt"));
         create_dir_all(current_dir.join("subdir_txt"));
         create_dir_all(current_dir.join("subdir+txt"));
-        create_file(current_dir.join("subdir*txt"), b"hello");
-        create_file(current_dir.join("subdir?txt"), b"hello");
+        create_file(current_dir.join("subdir)txt"), b"hello");
+        create_file(current_dir.join("subdir=txt"), b"hello");
         create_file(current_dir.join("subdir-txt"), b"hello");
 
         let path = current_dir.to_str().unwrap();

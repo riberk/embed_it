@@ -569,7 +569,7 @@ mod tests {
         )
         .unwrap_or_else(|e| panic!("Unable to canonicalize '{e:#?}'"));
 
-        assert_eq!(res, current_dir);
+        assert_eq!(res, std::fs::canonicalize(&current_dir).unwrap_or_else(|e| panic!("Unable to canonicalize '{current_dir:?}': {e:#?}")));
     }
 
     #[test]
