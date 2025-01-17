@@ -7,6 +7,9 @@ use crate::{
     fs::EntryKind,
 };
 
+use super::MakeEmbeddedTraitImplementationError;
+
+#[derive(Debug)]
 pub struct ContentTrait;
 
 impl EmbeddedTrait for ContentTrait {
@@ -16,23 +19,24 @@ impl EmbeddedTrait for ContentTrait {
 
     fn impl_body(
         &self,
-        ctx: &GenerateContext<'_>,
+        ctx: &mut GenerateContext<'_>,
         _entries: &[EntryTokens],
         _index: &[IndexTokens],
-    ) -> proc_macro2::TokenStream {
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         if ctx.entry.kind() != EntryKind::File {
-            panic!(
-                "Only files are supported to derive '{:?}'",
-                self.path(ctx.level)
-            )
+            return Err(MakeEmbeddedTraitImplementationError::UnsupportedEntry {
+                entry: ctx.entry.kind(),
+                trait_id: self.id(),
+            });
         }
+
         let origin = &ctx.entry.path().origin;
-        quote! {
+        Ok(quote! {
             fn content(&self) -> &'static [u8] {
                 const VALUE: &[u8] = include_bytes!(#origin);
                 VALUE
             }
-        }
+        })
     }
 
     fn definition(&self, _: &syn::Ident) -> Option<proc_macro2::TokenStream> {

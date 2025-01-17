@@ -1,21 +1,22 @@
 use darling::FromMeta;
+use proc_macro2::Span;
 use quote::quote;
 use syn::Ident;
 
 use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
-        content::ContentTrait, debug::DebugTrait, meta::MetaTrait, path::PathTrait, EmbeddedTrait,
-        TraitAttr,
+        content::ContentTrait, debug::DebugTrait, hashes::ids::*, meta::MetaTrait, path::PathTrait,
+        EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr, EMBEDED_TRAITS,
     },
 };
 
-fn default_file_traits() -> Vec<FileTrait> {
+fn default_file_traits() -> Vec<FileEmbeddedTrait> {
     Vec::from([
-        FileTrait::Content,
-        FileTrait::Debug,
-        FileTrait::Meta,
-        FileTrait::Path,
+        FileEmbeddedTrait::Content,
+        FileEmbeddedTrait::Debug,
+        FileEmbeddedTrait::Meta,
+        FileEmbeddedTrait::Path,
     ])
 }
 
@@ -25,7 +26,7 @@ pub struct FileAttr {
     trait_name: Option<Ident>,
 
     #[darling(default = default_file_traits, multiple, rename = "derive")]
-    traits: Vec<FileTrait>,
+    embedded_traits: Vec<FileEmbeddedTrait>,
 
     #[darling(default)]
     field_factory_trait_name: Option<Ident>,
@@ -35,46 +36,121 @@ impl Default for FileAttr {
     fn default() -> Self {
         Self {
             trait_name: None,
-            traits: default_file_traits(),
+            embedded_traits: default_file_traits(),
             field_factory_trait_name: None,
         }
     }
 }
 
 #[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
-#[darling(rename_all = "PascalCase")]
-pub enum FileTrait {
+pub enum FileEmbeddedTrait {
+    #[darling(rename = "Path")]
     Path,
+
+    #[darling(rename = "Content")]
     Content,
+
+    #[darling(rename = "Meta")]
     Meta,
+
+    #[darling(rename = "Debug")]
     Debug,
+
+    #[darling(rename = "Md5")]
+    Md5,
+
+    #[darling(rename = "Sha1")]
+    Sha1,
+
+    #[darling(rename = "Sha2_224")]
+    Sha2_224,
+
+    #[darling(rename = "Sha2_256")]
+    Sha2_256,
+
+    #[darling(rename = "Sha2_384")]
+    Sha2_384,
+
+    #[darling(rename = "Sha2_512")]
+    Sha2_512,
+
+    #[darling(rename = "Sha3_224")]
+    Sha3_224,
+
+    #[darling(rename = "Sha3_256")]
+    Sha3_256,
+
+    #[darling(rename = "Sha3_384")]
+    Sha3_384,
+
+    #[darling(rename = "Sha3_512")]
+    Sha3_512,
+
+    #[darling(rename = "Blake3")]
+    Blake3,
 }
 
-impl FileTrait {
-    fn as_embedded_trait(&self) -> &'static dyn EmbeddedTrait {
+impl FileEmbeddedTrait {
+    fn to_embedded_trait(self) -> Result<&'static dyn EmbeddedTrait, ResolveEmbeddedTraitError> {
         match self {
-            FileTrait::Path => &PathTrait,
-            FileTrait::Content => &ContentTrait,
-            FileTrait::Meta => &MetaTrait,
-            FileTrait::Debug => &DebugTrait,
+            Self::Path => Ok(&PathTrait),
+            Self::Content => Ok(&ContentTrait),
+            Self::Meta => Ok(&MetaTrait),
+            Self::Debug => Ok(&DebugTrait),
+
+            Self::Md5 => EMBEDED_TRAITS.get_hash_trait(MD5).map_err(Into::into),
+            Self::Sha1 => EMBEDED_TRAITS.get_hash_trait(SHA1).map_err(Into::into),
+            Self::Sha2_224 => EMBEDED_TRAITS.get_hash_trait(SHA2_224).map_err(Into::into),
+            Self::Sha2_256 => EMBEDED_TRAITS.get_hash_trait(SHA2_256).map_err(Into::into),
+            Self::Sha2_384 => EMBEDED_TRAITS.get_hash_trait(SHA2_384).map_err(Into::into),
+            Self::Sha2_512 => EMBEDED_TRAITS.get_hash_trait(SHA2_512).map_err(Into::into),
+            Self::Sha3_224 => EMBEDED_TRAITS.get_hash_trait(SHA3_224).map_err(Into::into),
+            Self::Sha3_256 => EMBEDED_TRAITS.get_hash_trait(SHA3_256).map_err(Into::into),
+            Self::Sha3_384 => EMBEDED_TRAITS.get_hash_trait(SHA3_384).map_err(Into::into),
+            Self::Sha3_512 => EMBEDED_TRAITS.get_hash_trait(SHA3_512).map_err(Into::into),
+            Self::Blake3 => EMBEDED_TRAITS.get_hash_trait(BLAKE3).map_err(Into::into),
         }
     }
 }
 
-impl TraitAttr for FileAttr {
-    const DEFAULT_TRAIT_NAME: &str = "File";
-    const DEFAULT_FIELD_FACTORY_TRAIT_NAME: &str = "FileFieldFactory";
+#[derive(Debug)]
+pub struct FileTrait {
+    embedded_traits: Vec<&'static dyn EmbeddedTrait>,
+    trait_name: Ident,
+    field_factory_trait_name: Ident,
+}
 
-    fn trait_name(&self) -> Option<&Ident> {
-        self.trait_name.as_ref()
+impl TryFrom<FileAttr> for FileTrait {
+    type Error = ResolveEmbeddedTraitError;
+    fn try_from(value: FileAttr) -> Result<FileTrait, Self::Error> {
+        let res = Self {
+            embedded_traits: value
+                .embedded_traits
+                .into_iter()
+                .map(|v| v.to_embedded_trait())
+                .collect::<Result<_, _>>()?,
+            trait_name: value
+                .trait_name
+                .unwrap_or_else(|| Ident::new("File", Span::call_site())),
+            field_factory_trait_name: value
+                .field_factory_trait_name
+                .unwrap_or_else(|| Ident::new("FileFieldFactory", Span::call_site())),
+        };
+        Ok(res)
+    }
+}
+
+impl TraitAttr for FileTrait {
+    fn trait_ident(&self) -> &Ident {
+        &self.trait_name
     }
 
-    fn field_factory_trait_name(&self) -> Option<&Ident> {
-        self.field_factory_trait_name.as_ref()
+    fn field_factory_trait_ident(&self) -> &Ident {
+        &self.field_factory_trait_name
     }
 
-    fn traits(&self) -> impl Iterator<Item = &'static dyn EmbeddedTrait> {
-        self.traits.iter().map(|v| v.as_embedded_trait())
+    fn embedded_traits(&self) -> impl Iterator<Item = &'static dyn EmbeddedTrait> {
+        self.embedded_traits.iter().copied()
     }
 
     fn struct_impl(&self, _: &GenerateContext<'_>, _: &[EntryTokens]) -> proc_macro2::TokenStream {

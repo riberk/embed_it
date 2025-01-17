@@ -3,11 +3,13 @@ use syn::parse_quote;
 
 use crate::{
     embed::{bool_like_enum::BoolLikeEnum, EntryTokens, GenerateContext, IndexTokens},
+    embedded_traits::MakeEmbeddedTraitImplementationError,
     fs::EntryKind,
 };
 
 use super::EmbeddedTrait;
 
+#[derive(Debug)]
 pub struct IndexTrait;
 
 fn ident() -> syn::Ident {
@@ -25,12 +27,15 @@ impl EmbeddedTrait for IndexTrait {
 
     fn impl_body(
         &self,
-        ctx: &GenerateContext<'_>,
+        ctx: &mut GenerateContext<'_>,
         _entries: &[EntryTokens],
         index: &[IndexTokens],
-    ) -> proc_macro2::TokenStream {
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         if ctx.entry.kind() != EntryKind::Dir {
-            panic!("Only dirs are supported to derive '{:?}'", ident())
+            return Err(MakeEmbeddedTraitImplementationError::UnsupportedEntry {
+                entry: ctx.entry.kind(),
+                trait_id: self.id(),
+            });
         }
         let entry_path = &ctx.entry_path;
         let index_len = index.len();
@@ -65,14 +70,14 @@ impl EmbeddedTrait for IndexTrait {
             }
         };
 
-        quote! {
+        Ok(quote! {
             fn #method(&self, path: &str) -> Option<&'static #entry_path> {
                 static VALUE: ::std::sync::LazyLock<::std::collections::HashMap<&'static str, #entry_path>> = ::std::sync::LazyLock::new(|| {
                     #index
                 });
                 #value_get
             }
-        }
+        })
     }
 
     fn definition(&self, entry_path: &syn::Ident) -> Option<proc_macro2::TokenStream> {

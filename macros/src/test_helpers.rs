@@ -1,6 +1,6 @@
 use std::{
     fmt::Debug,
-    fs::{self, create_dir},
+    fs::{self},
     io::Write,
     path::{Path, PathBuf},
     sync::OnceLock,
@@ -12,11 +12,11 @@ pub fn derive_input(input: proc_macro2::TokenStream) -> DeriveInput {
     syn::parse2(input).unwrap()
 }
 
-pub trait PrintToStdOut {
+pub trait Print {
     fn print_to_std_out(&self);
 }
 
-impl<E: Debug> PrintToStdOut for Result<proc_macro2::TokenStream, E> {
+impl<E: Debug> Print for Result<proc_macro2::TokenStream, E> {
     fn print_to_std_out(&self) {
         match self {
             Ok(s) => {

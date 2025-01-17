@@ -6,8 +6,9 @@ use crate::{
     fs::EntryPath,
 };
 
-use super::EmbeddedTrait;
+use super::{EmbeddedTrait, MakeEmbeddedTraitImplementationError};
 
+#[derive(Debug)]
 pub struct PathTrait;
 
 fn method() -> syn::Ident {
@@ -21,10 +22,10 @@ impl EmbeddedTrait for PathTrait {
 
     fn impl_body(
         &self,
-        ctx: &GenerateContext<'_>,
+        ctx: &mut GenerateContext<'_>,
         _entries: &[EntryTokens],
         _index: &[IndexTokens],
-    ) -> proc_macro2::TokenStream {
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         let EntryPath {
             relative: relative_path,
             file_name,
@@ -33,12 +34,12 @@ impl EmbeddedTrait for PathTrait {
         } = ctx.entry.path();
 
         let method = method();
-        quote! {
+        Ok(quote! {
             fn #method(&self) -> &'static ::embed_it::EmbeddedPath {
                 const VALUE: &::embed_it::EmbeddedPath = &::embed_it::EmbeddedPath::new(#relative_path, #file_name, #file_stem);
                 VALUE
             }
-        }
+        })
     }
 
     fn definition(&self, _: &syn::Ident) -> Option<proc_macro2::TokenStream> {

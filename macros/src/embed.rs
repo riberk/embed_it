@@ -6,7 +6,7 @@ pub mod regex;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf};
 
 use attributes::{
-    dir::DirAttr, embed::EmbedInput, entry::EntryAttr, field::FieldTraits, file::FileAttr,
+    dir::DirTrait, embed::EmbedInput, entry::EntryStruct, field::FieldTraits, file::FileTrait,
     support_alt_separator::SupportAltSeparator, with_extension::WithExtension,
 };
 use convert_case::{Case, Casing};
@@ -19,9 +19,11 @@ use syn::{
 };
 
 use crate::{
-    embedded_traits::{EmbeddedTrait, TraitAttr, EMBEDED_TRAITS},
+    embedded_traits::{
+        EmbeddedTrait, MakeEmbeddedTraitImplementationError, TraitAttr, EMBEDED_TRAITS,
+    },
     fs::{expand_and_canonicalize, get_env, Entry, EntryKind, ReadEntriesError},
-    unique_names::UniqueNames,
+    utils::{anymap::AnyMap, unique_names::UniqueNames},
 };
 
 pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream, syn::Error> {
@@ -68,15 +70,15 @@ pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream,
 }
 
 fn generate_embedded_trait_definitions(
-    dir_attr: &DirAttr,
-    file_attr: &FileAttr,
-    entry_attr: &EntryAttr,
+    dir_attr: &DirTrait,
+    file_attr: &FileTrait,
+    entry_attr: &EntryStruct,
 ) -> proc_macro2::TokenStream {
     let mut stream = proc_macro2::TokenStream::new();
 
     let traits = dir_attr
-        .traits()
-        .chain(file_attr.traits())
+        .embedded_traits()
+        .chain(file_attr.embedded_traits())
         .map(|v| v.id())
         .collect::<HashSet<_>>()
         .into_iter()
@@ -88,7 +90,7 @@ fn generate_embedded_trait_definitions(
     let entry_path = entry_attr.ident();
 
     for embedded_trait in traits {
-        stream.extend(embedded_trait.definition(&entry_path));
+        stream.extend(embedded_trait.definition(entry_path));
     }
 
     stream
@@ -108,9 +110,10 @@ fn generate_factory_trait_definition(attr: &impl TraitAttr) -> proc_macro2::Toke
 
 pub struct EntryTokens {
     pub struct_path: syn::Path,
-    pub kind: EntryKind,
     pub field_name: String,
     pub field_ident: syn::Ident,
+    pub items: AnyMap,
+    pub entry: Entry,
 }
 
 pub struct IndexTokens {
@@ -193,6 +196,8 @@ pub struct GenerateContext<'a> {
     pub entry_path: syn::Path,
 
     pub settings: &'a GenerationSettings,
+
+    pub items: AnyMap,
 }
 
 #[derive(Debug)]
@@ -213,13 +218,13 @@ pub struct GenerationSettings {
     pub support_alt_separator: SupportAltSeparator,
 
     /// Information about the `Dir` trait
-    pub dir: DirAttr,
+    pub dir: DirTrait,
 
     /// Information about the `File` trait
-    pub file: FileAttr,
+    pub file: FileTrait,
 
     /// Information about the `Entry` struct
-    pub entry: EntryAttr,
+    pub entry: EntryStruct,
 }
 
 impl TryFrom<EmbedInput> for GenerationSettings {
@@ -235,8 +240,11 @@ impl TryFrom<EmbedInput> for GenerationSettings {
                 ),
             )
         })?;
-        let traits =
-            FieldTraits::try_from_attrs(value.fields, &value.dir, &value.file, &value.ident)?;
+        let dir = DirTrait::try_from(value.dir).map_err(|e| e.into_syn(&value.ident))?;
+        let file = FileTrait::try_from(value.file).map_err(|e| e.into_syn(&value.ident))?;
+        let entry = EntryStruct::from(value.entry);
+
+        let traits = FieldTraits::try_from_attrs(value.fields, &dir, &file, &value.ident)?;
 
         Ok(Self {
             main_struct_ident: value.ident,
@@ -244,9 +252,9 @@ impl TryFrom<EmbedInput> for GenerationSettings {
             traits,
             with_extension: value.with_extension,
             support_alt_separator: value.support_alt_separator,
-            dir: value.dir,
-            file: value.file,
-            entry: value.entry,
+            dir,
+            file,
+            entry,
         })
     }
 }
@@ -267,7 +275,7 @@ impl<'a> GenerateContext<'a> {
         let mod_name = settings.main_struct_ident.to_string().to_case(Case::Snake);
         let mod_ident = Ident::new(&mod_name, Span::call_site());
 
-        let entry_path = Self::make_nested_path(0, settings.entry.ident().into_owned());
+        let entry_path = Self::make_nested_path(0, settings.entry.ident().to_owned());
         Ok(Self {
             level: 0,
             entry,
@@ -278,6 +286,7 @@ impl<'a> GenerateContext<'a> {
             mod_ident,
             entry_path,
             settings,
+            items: Default::default(),
         })
     }
 
@@ -288,7 +297,7 @@ impl<'a> GenerateContext<'a> {
         let mod_name = entry.path().ident.to_case(Case::Snake);
         let mod_ident = Ident::new_raw(&mod_name, Span::call_site());
         let level = self.level + 1;
-        let entry_path = Self::make_nested_path(level, self.settings.entry.ident().into_owned());
+        let entry_path = Self::make_nested_path(level, self.settings.entry.ident().to_owned());
 
         Self {
             level,
@@ -300,6 +309,7 @@ impl<'a> GenerateContext<'a> {
             mod_ident,
             entry_path,
             settings: self.settings,
+            items: Default::default(),
         }
     }
 
@@ -322,7 +332,9 @@ impl<'a> GenerateContext<'a> {
         let mut index = Vec::new();
 
         let stream = match self.entry.kind() {
-            EntryKind::File => self.build_file(&entries, &index),
+            EntryKind::File => self
+                .build_file(&entries, &index)
+                .map_err(BuildStreamError::File)?,
             EntryKind::Dir => self
                 .build_dir(&mut entries, &mut index)
                 .map_err(BuildStreamError::Dir)?,
@@ -359,9 +371,10 @@ impl<'a> GenerateContext<'a> {
 
         parent_entries.push(EntryTokens {
             struct_path: struct_path.clone(),
-            kind: self.entry.kind(),
             field_name: self.mod_name,
             field_ident: self.mod_ident,
+            items: self.items,
+            entry: self.entry,
         });
 
         Ok(stream)
@@ -404,7 +417,8 @@ impl<'a> GenerateContext<'a> {
         let impl_stream = self
             .settings
             .dir
-            .implementation_stream(self, entries, index);
+            .implementation_stream(self, entries, index)
+            .map_err(BuildDirError::MakeEmbeddedTraitImplementation)?;
         let stream = quote! {
             #impl_stream
             #modules
@@ -417,10 +431,11 @@ impl<'a> GenerateContext<'a> {
         &mut self,
         entries: &[EntryTokens],
         index: &[IndexTokens],
-    ) -> proc_macro2::TokenStream {
+    ) -> Result<proc_macro2::TokenStream, BuildFileError> {
         self.settings
             .file
             .implementation_stream(self, entries, index)
+            .map_err(BuildFileError::MakeEmbeddedTraitImplementation)
     }
 
     pub fn is_trait_implemented_for(
@@ -438,11 +453,18 @@ impl<'a> GenerateContext<'a> {
 #[derive(Debug)]
 pub enum BuildStreamError {
     Dir(#[allow(dead_code)] BuildDirError),
+    File(#[allow(dead_code)] BuildFileError),
 }
 
 #[derive(Debug)]
 pub enum BuildDirError {
     ReadEntries(#[allow(dead_code)] ReadEntriesError),
+    MakeEmbeddedTraitImplementation(#[allow(dead_code)] MakeEmbeddedTraitImplementationError),
+}
+
+#[derive(Debug)]
+pub enum BuildFileError {
+    MakeEmbeddedTraitImplementation(#[allow(dead_code)] MakeEmbeddedTraitImplementationError),
 }
 
 #[cfg(test)]
@@ -451,7 +473,7 @@ mod tests {
     use crate::{
         fn_name,
         test_helpers::{
-            create_dir_all, create_file, derive_input, remove_dir_all, tests_dir, PrintToStdOut,
+            create_dir_all, create_file, derive_input, remove_dir_all, tests_dir, Print,
         },
     };
 
@@ -681,5 +703,135 @@ mod tests {
             segments: Punctuated::new(),
         };
         fix_path(&path, 10);
+    }
+
+    #[test]
+    #[cfg(all(
+        feature = "md5",
+        feature = "sha1",
+        feature = "sha2",
+        feature = "sha3",
+        feature = "blake3"
+    ))]
+    fn hashes() {
+        let current_dir = tests_dir().join(fn_name!());
+        if current_dir.exists() {
+            remove_dir_all(&current_dir);
+        }
+        create_dir_all(&current_dir);
+        create_file(current_dir.join("hello.txt"), b"hello");
+        create_file(current_dir.join("world.txt"), b"world");
+        create_file(current_dir.join("one.txt"), b"one");
+
+        let subdir1 = current_dir.join("one_txt");
+        create_dir_all(&subdir1);
+        create_file(subdir1.join("hello"), b"hello");
+        create_file(subdir1.join("world"), b"world");
+
+        let path = current_dir.to_str().unwrap();
+
+        let input = derive_input(quote! {
+            #[derive(Embed)]
+            #[embed(
+                path = #path,
+                dir(
+                    derive(Md5),
+                    derive(Sha1),
+                    derive(Sha2_224),
+                    derive(Sha2_256),
+                    derive(Sha2_384),
+                    derive(Sha2_384),
+                    derive(Sha2_512),
+                    derive(Sha3_224),
+                    derive(Sha3_256),
+                    derive(Sha3_384),
+                    derive(Sha3_384),
+                    derive(Sha3_512),
+                    derive(Blake3),
+                ),
+                file(
+                    derive(Md5),
+                    derive(Sha1),
+                    derive(Sha2_224),
+                    derive(Sha2_256),
+                    derive(Sha2_384),
+                    derive(Sha2_384),
+                    derive(Sha2_512),
+                    derive(Sha3_224),
+                    derive(Sha3_256),
+                    derive(Sha3_384),
+                    derive(Sha3_384),
+                    derive(Sha3_512),
+                    derive(Blake3),
+                ),
+            )]
+            pub struct Assets;
+        });
+
+        impl_embed(input).unwrap();
+    }
+
+    #[test]
+    #[cfg(feature = "md5")]
+    fn hashes_only_dir() {
+        let current_dir = tests_dir().join(fn_name!());
+        if current_dir.exists() {
+            remove_dir_all(&current_dir);
+        }
+        create_dir_all(&current_dir);
+        create_file(current_dir.join("hello.txt"), b"hello");
+        create_file(current_dir.join("world.txt"), b"world");
+        create_file(current_dir.join("one.txt"), b"one");
+
+        let subdir1 = current_dir.join("one_txt");
+        create_dir_all(&subdir1);
+        create_file(subdir1.join("hello"), b"hello");
+        create_file(subdir1.join("world"), b"world");
+
+        let path = current_dir.to_str().unwrap();
+
+        let input = derive_input(quote! {
+            #[derive(Embed)]
+            #[embed(
+                path = #path,
+                dir(
+                    derive(Md5),
+                ),
+            )]
+            pub struct Assets;
+        });
+
+        impl_embed(input).print_to_std_out();
+    }
+
+    #[test]
+    #[cfg(feature = "md5")]
+    fn hashes_only_file() {
+        let current_dir = tests_dir().join(fn_name!());
+        if current_dir.exists() {
+            remove_dir_all(&current_dir);
+        }
+        create_dir_all(&current_dir);
+        create_file(current_dir.join("hello.txt"), b"hello");
+        create_file(current_dir.join("world.txt"), b"world");
+        create_file(current_dir.join("one.txt"), b"one");
+
+        let subdir1 = current_dir.join("one_txt");
+        create_dir_all(&subdir1);
+        create_file(subdir1.join("hello"), b"hello");
+        create_file(subdir1.join("world"), b"world");
+
+        let path = current_dir.to_str().unwrap();
+
+        let input = derive_input(quote! {
+            #[derive(Embed)]
+            #[embed(
+                path = #path,
+                file(derive(Md5)),
+            )]
+            pub struct Assets;
+        });
+
+        impl_embed(input).print_to_std_out();
     }
 }

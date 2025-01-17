@@ -12,7 +12,7 @@ use crate::{
     fs::{Entry, EntryKind},
 };
 
-use super::{dir::DirAttr, file::FileAttr};
+use super::{dir::DirTrait, file::FileTrait};
 
 #[derive(Debug, FromMeta)]
 pub struct FieldAttr {
@@ -44,25 +44,22 @@ pub struct FieldTrait {
 }
 
 impl FieldTrait {
-    pub fn create(field_attr: FieldAttr, dir_attr: &DirAttr, file_attr: &FileAttr) -> Self {
+    pub fn create(field_attr: FieldAttr, dir: &DirTrait, file: &FileTrait) -> Self {
         let trait_ident = field_attr.trait_name.unwrap_or_else(|| {
             let name = format!("{}Field", field_attr.name.to_string().to_case(Case::Pascal));
             Ident::new_raw(&name, Span::call_site())
         });
 
         let (bound_ident, factory_trait) = match field_attr.target {
-            EntryKind::Dir => (dir_attr.trait_ident(), dir_attr.field_factory_trait_ident()),
-            EntryKind::File => (
-                file_attr.trait_ident(),
-                file_attr.field_factory_trait_ident(),
-            ),
+            EntryKind::Dir => (dir.trait_ident(), dir.field_factory_trait_ident()),
+            EntryKind::File => (file.trait_ident(), file.field_factory_trait_ident()),
         };
 
         Self {
             field_ident: field_attr.name,
             trait_ident,
-            bound_ident: bound_ident.into_owned(),
-            factory_trait: factory_trait.into_owned(),
+            bound_ident: bound_ident.to_owned(),
+            factory_trait: factory_trait.to_owned(),
             regex: field_attr.regex,
             pattern: field_attr.pattern,
             target: field_attr.target,
@@ -140,8 +137,8 @@ pub struct FieldTraits(Vec<FieldTrait>);
 impl FieldTraits {
     pub fn try_from_attrs(
         attrs: Vec<FieldAttr>,
-        dir: &DirAttr,
-        file: &FileAttr,
+        dir: &DirTrait,
+        file: &FileTrait,
         main_struct_ident: &Ident,
     ) -> Result<Self, syn::Error> {
         let fields_len = attrs.len();

@@ -24,8 +24,24 @@ unicode-ident = "1"
 regex = { version = "1.5.5" }
 glob = { version = "0.3"}
 
+digest = { version = "0.10", optional = true }
+md-5 = { version = "0.10", optional = true }
+sha1 = { version = "0.10", optional = true }
+sha2 = { version = "0.10", optional = true }
+sha3 = { version = "0.10", optional = true }
+blake3 = { version = "1", optional = true }
+
+
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 prettyplease = {version = "0.2", features = ["verbatim"]}
+hex-literal = { version = "0.4" }
 
 
+[features]
+digest = ["dep:digest"]
+md5 = ["dep:md-5", "digest"]
+sha1 = ["dep:sha1", "digest"]
+sha2 = ["dep:sha2", "digest"]
+sha3 = ["dep:sha3", "digest"]
+blake3 = ["dep:blake3"]

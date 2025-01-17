@@ -5,7 +5,7 @@ use syn::{parse_macro_input, DeriveInput};
 pub(crate) mod embed;
 pub(crate) mod embedded_traits;
 pub(crate) mod fs;
-pub(crate) mod unique_names;
+pub(crate) mod utils;
 
 #[cfg(test)]
 pub(crate) mod test_helpers;

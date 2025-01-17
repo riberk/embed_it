@@ -5,8 +5,9 @@ use syn::parse_quote;
 
 use crate::embed::{EntryTokens, GenerateContext, IndexTokens};
 
-use super::EmbeddedTrait;
+use super::{EmbeddedTrait, MakeEmbeddedTraitImplementationError};
 
+#[derive(Debug)]
 pub struct MetaTrait;
 
 fn method() -> syn::Ident {
@@ -20,10 +21,10 @@ impl EmbeddedTrait for MetaTrait {
 
     fn impl_body(
         &self,
-        ctx: &GenerateContext<'_>,
+        ctx: &mut GenerateContext<'_>,
         _entries: &[EntryTokens],
         _index: &[IndexTokens],
-    ) -> proc_macro2::TokenStream {
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         fn unixtime(t: SystemTime) -> Duration {
             t.duration_since(SystemTime::UNIX_EPOCH).unwrap()
         }
@@ -48,7 +49,7 @@ impl EmbeddedTrait for MetaTrait {
         let modified = make_stream(meta.modified());
 
         let method = method();
-        quote! {
+        Ok(quote! {
             fn #method(&self) -> &'static ::embed_it::Metadata {
                 const VALUE: &::embed_it::Metadata = &::embed_it::Metadata::new(
                     #accessed,
@@ -57,7 +58,7 @@ impl EmbeddedTrait for MetaTrait {
                 );
                 VALUE
             }
-        }
+        })
     }
 
     fn definition(&self, _: &syn::Ident) -> Option<proc_macro2::TokenStream> {

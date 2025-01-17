@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::collections::HashMap;
 
 use darling::FromMeta;
 use proc_macro2::Span;
@@ -7,7 +7,7 @@ use syn::Ident;
 
 use crate::embedded_traits::TraitAttr;
 
-use super::{dir::DirAttr, file::FileAttr};
+use super::{dir::DirTrait, file::FileTrait};
 
 #[derive(Debug, Default, FromMeta)]
 pub struct EntryAttr {
@@ -15,30 +15,38 @@ pub struct EntryAttr {
     struct_name: Option<Ident>,
 }
 
-impl EntryAttr {
-    pub fn ident(&self) -> Cow<'_, Ident> {
-        match &self.struct_name {
-            Some(ident) => Cow::Borrowed(ident),
-            None => Cow::Owned(Ident::new("Entry", Span::call_site())),
+#[derive(Debug)]
+pub struct EntryStruct {
+    struct_name: Ident,
+}
+
+impl From<EntryAttr> for EntryStruct {
+    fn from(value: EntryAttr) -> Self {
+        Self {
+            struct_name: value
+                .struct_name
+                .unwrap_or_else(|| Ident::new("Entry", Span::call_site())),
         }
     }
+}
 
-    pub fn implementation(
-        &self,
-        dir_attr: &DirAttr,
-        file_attr: &FileAttr,
-    ) -> proc_macro2::TokenStream {
-        let dir_traits = dir_attr
-            .traits()
+impl EntryStruct {
+    pub fn ident(&self) -> &Ident {
+        &self.struct_name
+    }
+
+    pub fn implementation(&self, dir: &DirTrait, file: &FileTrait) -> proc_macro2::TokenStream {
+        let dir_traits = dir
+            .embedded_traits()
             .map(|v| (v.id(), v))
             .collect::<HashMap<_, _>>();
-        let file_traits = file_attr
-            .traits()
+        let file_traits = file
+            .embedded_traits()
             .map(|v| (v.id(), v))
             .collect::<HashMap<_, _>>();
         let ident = self.ident();
-        let dir_trait = dir_attr.trait_ident();
-        let file_trait = file_attr.trait_ident();
+        let dir_trait = dir.trait_ident();
+        let file_trait = file.trait_ident();
         let mut stream = quote! {
             pub enum #ident {
                 Dir(&'static dyn #dir_trait),

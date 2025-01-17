@@ -1,4 +1,4 @@
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::parse_quote;
 
 use crate::{
@@ -6,8 +6,9 @@ use crate::{
     fs::EntryKind,
 };
 
-use super::EmbeddedTrait;
+use super::{EmbeddedTrait, MakeEmbeddedTraitImplementationError};
 
+#[derive(Debug)]
 pub struct DebugTrait;
 
 impl EmbeddedTrait for DebugTrait {
@@ -17,38 +18,38 @@ impl EmbeddedTrait for DebugTrait {
 
     fn impl_body(
         &self,
-        ctx: &GenerateContext<'_>,
+        ctx: &mut GenerateContext<'_>,
         entries: &[EntryTokens],
         _index: &[IndexTokens],
-    ) -> proc_macro2::TokenStream {
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         match ctx.entry.kind() {
             EntryKind::Dir => {
                 let fields = entries.iter().fold(quote! {}, |mut accum, entry| {
                     let field_name = &entry.field_name;
                     let field_ident = &entry.field_ident;
-                    if ctx.is_trait_implemented_for(entry.kind, &DebugTrait) {
+                    if ctx.is_trait_implemented_for(entry.entry.kind(), &DebugTrait) {
                         accum.extend(quote! {
                             debug.field(#field_name, &self.#field_ident());
                         });
                     } else {
-                        let struct_name = entry.struct_path.get_ident().unwrap().to_string();
+                        let struct_name = entry.struct_path.to_token_stream().to_string();
                         accum.extend(quote! {
                             debug.field(#field_name, &#struct_name);
                         });
                     }
                     accum
                 });
-                debug(ctx, fields)
+                Ok(debug(ctx, fields))
             }
             EntryKind::File => {
                 let file_len = ctx.entry.metadata().len();
                 let debug_content = format!("<{} bytes>", file_len);
-                debug(
+                Ok(debug(
                     ctx,
                     quote! {
                         debug.field("content", &#debug_content);
                     },
-                )
+                ))
             }
         }
     }

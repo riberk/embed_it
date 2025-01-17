@@ -12,7 +12,7 @@ use unicode_ident::{is_xid_continue, is_xid_start};
 
 use crate::{
     embed::{attributes::with_extension::WithExtension, bool_like_enum::BoolLikeEnum},
-    unique_names::UniqueNames,
+    utils::unique_names::UniqueNames,
 };
 
 const REPLACEMENT_IDENT_CHAR: char = '_';
@@ -329,7 +329,7 @@ mod tests {
 
     use crate::{
         embed::attributes::with_extension::WithExtension, fn_name, fs::NormalizePathError,
-        test_helpers::tests_dir, unique_names::UniqueNames,
+        test_helpers::tests_dir, utils::unique_names::UniqueNames,
     };
 
     use super::{expand_and_canonicalize, EntryPath, ExpandPathError};
