@@ -288,6 +288,7 @@ pub fn expand_and_canonicalize(
     } else {
         path.replace("\\", std::path::MAIN_SEPARATOR_STR)
     };
+
     std::fs::canonicalize(&path).map_err(|e| ExpandPathError::Fs(path.clone(), e))
 }
 
@@ -547,7 +548,7 @@ mod tests {
     #[test]
     fn expand_and_canonicalize_pass() {
         let dir_name = fn_name!();
-        let current_dir = tests_dir().join(dir_name);
+        let current_dir = tests_dir().join(&dir_name);
         if current_dir.exists() {
             remove_dir_all(&current_dir).unwrap();
         }
@@ -556,11 +557,11 @@ mod tests {
         let res = expand_and_canonicalize(
             &format!(
                 "../target/test_data/{}/../{}/../$DIR/../${{DIR}}",
-                dir_name, dir_name
+                &dir_name, &dir_name
             ),
             |var| {
                 if var == "DIR" {
-                    Ok(dir_name.to_owned())
+                    Ok(dir_name.clone())
                 } else {
                     panic!("unknown variable: '{}'", var)
                 }
