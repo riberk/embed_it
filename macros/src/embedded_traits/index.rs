@@ -2,7 +2,7 @@ use quote::quote;
 use syn::parse_quote;
 
 use crate::{
-    embed::{EntryTokens, GenerateContext, IndexTokens},
+    embed::{BoolLikeEnum, EntryTokens, GenerateContext, IndexTokens},
     fs::EntryKind,
 };
 
@@ -34,26 +34,43 @@ impl EmbeddedTrait for IndexTrait {
         }
         let entry_path = &ctx.entry_path;
         let index_len = index.len();
-        let index = index.iter().fold(proc_macro2::TokenStream::new(), |mut acc, tokens| {
-                    let IndexTokens { relative_path,  struct_path,  kind, .. } = tokens;
-                    let kind_ident = kind.ident();
-                    acc.extend(quote! {
-                        map.insert(::std::path::Path::new(#relative_path), #entry_path::#kind_ident(&#struct_path));
-                    });
-                    acc
+        let index = index
+            .iter()
+            .fold(proc_macro2::TokenStream::new(), |mut acc, tokens| {
+                let IndexTokens {
+                    relative_path,
+                    struct_path,
+                    kind,
+                    ..
+                } = tokens;
+                let kind_ident = kind.ident();
+                acc.extend(quote! {
+                    map.insert(#relative_path, #entry_path::#kind_ident(&#struct_path));
                 });
+                acc
+            });
         let index = quote! {
             let mut map = ::std::collections::HashMap::with_capacity(#index_len);
             #index
             map
         };
         let method = method();
+        let value_get = if ctx.settings.support_alt_separator.as_bool() {
+            quote! {
+                VALUE.get(path.replace("\\", "/").as_str())
+            }
+        } else {
+            quote! {
+                VALUE.get(path)
+            }
+        };
+
         quote! {
-            fn #method(&self, path: &::std::path::Path) -> Option<&'static #entry_path> {
-                static VALUE: ::std::sync::LazyLock<::std::collections::HashMap<&'static ::std::path::Path, #entry_path>> = ::std::sync::LazyLock::new(|| {
+            fn #method(&self, path: &str) -> Option<&'static #entry_path> {
+                static VALUE: ::std::sync::LazyLock<::std::collections::HashMap<&'static str, #entry_path>> = ::std::sync::LazyLock::new(|| {
                     #index
                 });
-                VALUE.get(path)
+                #value_get
             }
         }
     }
@@ -63,7 +80,7 @@ impl EmbeddedTrait for IndexTrait {
         let method = method();
         Some(quote! {
             pub trait #ident {
-                fn #method(&self, path: &::std::path::Path) -> Option<&'static #entry_path>;
+                fn #method(&self, path: &str) -> Option<&'static #entry_path>;
             }
         })
     }

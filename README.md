@@ -52,7 +52,7 @@ pub struct Assets;
 | `file`            | `FileAttr`       | false    | false    | `FileAttr::default()`  | Change settings, how  `File` -trait and its implementations will be generated. See more in [File Attr](#FileAttr) section                                                                                                                                                                   |
 | `entry`           | `EntryAttr`      | false    | false    | `EntryAttr::default()` | Change settings, how  `Entry` -struct and its implementations will be generated. See more in [Entry Attr](#EntryAttr) section                                                                                                                                                               |
 | `field`           | `Vec<FieldAttr>` | true     | false    | `vec![]`               | Add additional "fields" for dirs and files. See more in [Field Attr](#FieldAttr)                                                                                                                                                                                                            |
-| `with_extensions` | `bool`           | false    | false    | `false`                | Use file extensions for method and struct name                                                                                                                                                                                                                                              |
+| `with_extension`  | `bool`           | false    | false    | `false`                | Use file extensions for method and struct name                                                                                                                                                                                                                                              |
 
 ### <a name="DirAttr"></a> DirAttr
 
@@ -253,9 +253,9 @@ use embed_it::Embed;
         struct_name = AssetsEntry,
     ),
     // if true, macros will be use extension as a part of `StructName`s and `methos_name`s
-    // e.g. hello.txt turns into HelloTxt/hello_txt() if with_extensions = true, and Hello/hello() if with_extensions = false
+    // e.g. hello.txt turns into HelloTxt/hello_txt() if with_extension = true, and Hello/hello() if with_extension = false
     // default is false
-    with_extensions = true,
+    with_extension = true,
     field(
         // The name of the method of the trait
         name = as_str, 

@@ -3,7 +3,7 @@ use embed_it::Embed;
 #[derive(Embed)]
 #[embed(
     path = "$CARGO_MANIFEST_DIR/../example_dirs/same_names",
-    with_extensions = true
+    with_extension = true
 )]
 pub struct SameNames;
 

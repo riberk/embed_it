@@ -1,7 +1,8 @@
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
-    path::Path,
+    fmt::{Debug, Display},
+    path::{Path, PathBuf},
 };
 
 use convert_case::{Case, Casing};
@@ -26,9 +27,17 @@ use crate::{
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(embed), supports(struct_unit))]
 struct EmbedInput {
+    ident: syn::Ident,
+
     path: String,
 
-    with_extensions: Option<bool>,
+    #[darling(default)]
+    with_extension: WithExtension,
+
+    /// If true, before `get` all `\\` characters
+    /// will be replaced by `/`. Default: `false`
+    #[darling(default)]
+    support_alt_separator: SupportAltSeparator,
 
     #[darling(default, multiple, rename = "field")]
     fields: Vec<FieldAttr>,
@@ -41,6 +50,110 @@ struct EmbedInput {
 
     #[darling(default)]
     entry: EntryAttr,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum WithExtension {
+    #[default]
+    No = 0,
+    Yes = 1,
+}
+
+impl BoolLikeEnum for WithExtension {
+    fn yes() -> Self {
+        Self::Yes
+    }
+
+    fn no() -> Self {
+        Self::No
+    }
+}
+
+pub trait BoolLikeEnum: Sized + Eq {
+    const HELP_MESSAGE: &str = r#"You should use true and false literals (without quotes), chars 'y', 't', 'n', 'f', or strings "y", "t", "yes", "true", "n", "f", "no", "false""#;
+    fn yes() -> Self;
+    fn no() -> Self;
+
+    fn as_bool(&self) -> bool {
+        self == &Self::yes()
+    }
+
+    fn error(v: impl Display) -> darling::Error {
+        darling::Error::custom(format!(
+            "Unable to parse value '{v}'.{}",
+            Self::HELP_MESSAGE
+        ))
+    }
+
+    fn darling_from_bool(value: bool) -> darling::Result<Self> {
+        match value {
+            true => Ok(Self::yes()),
+            false => Ok(Self::no()),
+        }
+    }
+
+    fn darling_from_char(value: char) -> darling::Result<Self> {
+        match value {
+            'y' | 't' => Self::darling_from_bool(true),
+            'f' | 'n' => Self::darling_from_bool(false),
+            _ => Err(Self::error(value)),
+        }
+    }
+
+    fn darling_from_string(value: &str) -> darling::Result<Self> {
+        match value {
+            "yes" | "true" | "t" | "y" => Self::darling_from_bool(true),
+            "no" | "false" | "f" | "n" => Self::darling_from_bool(false),
+            _ => Err(Self::error(value)),
+        }
+    }
+}
+
+impl FromMeta for WithExtension {
+    fn from_bool(value: bool) -> darling::Result<Self> {
+        Self::darling_from_bool(value)
+    }
+
+    fn from_char(value: char) -> darling::Result<Self> {
+        Self::darling_from_char(value)
+    }
+
+    fn from_string(value: &str) -> darling::Result<Self> {
+        Self::darling_from_string(value)
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SupportAltSeparator {
+    #[default]
+    No = 0,
+    Yes = 1,
+}
+
+impl BoolLikeEnum for SupportAltSeparator {
+    fn yes() -> Self {
+        Self::Yes
+    }
+
+    fn no() -> Self {
+        Self::No
+    }
+}
+
+impl FromMeta for SupportAltSeparator {
+    fn from_bool(value: bool) -> darling::Result<Self> {
+        Self::darling_from_bool(value)
+    }
+
+    fn from_char(value: char) -> darling::Result<Self> {
+        Self::darling_from_char(value)
+    }
+
+    fn from_string(value: &str) -> darling::Result<Self> {
+        Self::darling_from_string(value)
+    }
 }
 
 #[derive(Debug, FromMeta)]
@@ -360,50 +473,9 @@ pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream,
     let main_struct_ident = &input.ident;
 
     let input = EmbedInput::from_derive_input(&input)?;
+    let settings = GenerationSettings::try_from(input)?;
 
-    let root = expand_and_canonicalize(&input.path, get_env).map_err(|e| {
-        Error::new_spanned(
-            main_struct_ident,
-            format!(
-                "Unable to expand and canonicalize path '{}': {:?}",
-                &input.path, e
-            ),
-        )
-    })?;
-
-    let with_extensions = input.with_extensions.unwrap_or_default();
-    let fields_len = input.fields.len();
-    let mut trait_names = HashSet::new();
-    let mut traits = Vec::with_capacity(fields_len);
-
-    for field_attr in input.fields {
-        let field_trait = FieldTrait::create(field_attr, &input.dir, &input.file);
-        if !trait_names.insert(field_trait.trait_ident.clone()) {
-            return Err(Error::new_spanned(
-                main_struct_ident,
-                format!(
-                    r#"There are some fields with the same trait names. 
-Macros will generate a trait definition for each 'field' and a trait name will be an ident 
-from an attribute 'name' of a 'field' in PascalCase with a suffix 'Field'. 
-Change your field names or use an explicit trait name with a 'trait_name' attribute of a 'field'. 
-REMARK: fileds instead may have the same names, because each field generates a trait.
-The error has been produced by a trait name '{}' on a field '{}'"#,
-                    field_trait.trait_ident, field_trait.field_ident
-                ),
-            ));
-        }
-        traits.push(field_trait);
-    }
-
-    let mut context = GenerateContext::root(
-        main_struct_ident,
-        &root,
-        &traits,
-        with_extensions,
-        &input.dir,
-        &input.file,
-        &input.entry,
-    )?;
+    let mut context = GenerateContext::root(&settings)?;
 
     let impls = context
         .build_dir(&mut Vec::new(), &mut Vec::new())
@@ -413,18 +485,18 @@ The error has been produced by a trait name '{}' on a field '{}'"#,
                 format!("Unable to build root struct: {e:#?}"),
             )
         })?;
-    let dir_trait_definition = input.dir.definition();
-    let file_trait_definition = input.file.definition();
+    let dir_trait_definition = settings.dir.definition();
+    let file_trait_definition = settings.file.definition();
 
-    let field_traits_definition = generate_field_trait_definitions(&traits);
+    let field_traits_definition = generate_field_trait_definitions(&settings.traits);
     let field_traits_implementation = context.field_traits_implementation();
 
     let embedded_traits_definition =
-        generate_embedded_trait_definitions(&input.dir, &input.file, &input.entry);
-    let entry_implementation = input.entry.implementation(&input.dir, &input.file);
+        generate_embedded_trait_definitions(&settings.dir, &settings.file, &settings.entry);
+    let entry_implementation = settings.entry.implementation(&settings.dir, &settings.file);
 
-    let dir_field_factory_definition = generate_factory_trait_definition(&input.dir);
-    let file_field_factory_definition = generate_factory_trait_definition(&input.file);
+    let dir_field_factory_definition = generate_factory_trait_definition(&settings.dir);
+    let file_field_factory_definition = generate_factory_trait_definition(&settings.file);
     let stream = quote! {
         #embedded_traits_definition
         #entry_implementation
@@ -656,17 +728,8 @@ pub fn fix_path(path: &syn::Path, nesting: usize) -> Cow<'_, syn::Path> {
 
 /// A context of an entry generation
 pub struct GenerateContext<'a> {
-    /// The absolute fs path for `path` attribute
-    pub root: &'a Path,
-
     /// A nesting level of the entry
     pub level: usize,
-
-    /// User defined field traits
-    pub traits: &'a [FieldTrait],
-
-    /// Should we use extensions in idents
-    pub with_extensions: bool,
 
     /// An information about the file system entry
     pub entry: Entry,
@@ -686,56 +749,115 @@ pub struct GenerateContext<'a> {
     /// The identifier of the module and field (snake_case)
     pub mod_ident: syn::Ident,
 
-    /// Information about the `Dir` trait
-    pub dir_attr: &'a DirAttr,
-
-    /// Information about the `File` trait
-    pub file_attr: &'a FileAttr,
-
-    /// Information about the `Entry` struct
-    pub entry_attr: &'a EntryAttr,
-
     /// The path of the `Entry` struct (including `super::super::...::$ident`)
     pub entry_path: syn::Path,
+
+    pub settings: &'a GenerationSettings,
+}
+
+pub struct GenerationSettings {
+    pub main_struct_ident: syn::Ident,
+
+    /// The absolute fs path for `path` attribute
+    pub root: PathBuf,
+
+    /// User defined field traits
+    pub traits: Vec<FieldTrait>,
+
+    /// Should we use extensions in idents
+    pub with_extension: WithExtension,
+
+    /// If true, before `get` all `\\` characters
+    /// will be replaced by `/`
+    pub support_alt_separator: SupportAltSeparator,
+
+    /// Information about the `Dir` trait
+    pub dir: DirAttr,
+
+    /// Information about the `File` trait
+    pub file: FileAttr,
+
+    /// Information about the `Entry` struct
+    pub entry: EntryAttr,
+}
+
+impl TryFrom<EmbedInput> for GenerationSettings {
+    type Error = Error;
+
+    fn try_from(value: EmbedInput) -> Result<Self, Self::Error> {
+        let root = expand_and_canonicalize(&value.path, get_env).map_err(|e| {
+            Error::new_spanned(
+                &value.ident,
+                format!(
+                    "Unable to expand and canonicalize path '{}': {:?}",
+                    &value.path, e
+                ),
+            )
+        })?;
+
+        let fields_len = value.fields.len();
+        let mut trait_names = HashSet::new();
+        let mut traits = Vec::with_capacity(fields_len);
+
+        for field_attr in value.fields {
+            let field_trait = FieldTrait::create(field_attr, &value.dir, &value.file);
+            if !trait_names.insert(field_trait.trait_ident.clone()) {
+                return Err(Error::new_spanned(
+                    &value.ident,
+                    format!(
+                        r#"There are some fields with the same trait names. 
+    Macros will generate a trait definition for each 'field' and a trait name will be an ident 
+    from an attribute 'name' of a 'field' in PascalCase with a suffix 'Field'. 
+    Change your field names or use an explicit trait name with a 'trait_name' attribute of a 'field'. 
+    REMARK: fileds instead may have the same names, because each field generates a trait.
+    The error has been produced by a trait name '{}' on a field '{}'"#,
+                        field_trait.trait_ident, field_trait.field_ident
+                    ),
+                ));
+            }
+            traits.push(field_trait);
+        }
+
+        Ok(Self {
+            main_struct_ident: value.ident,
+            root,
+            traits,
+            with_extension: value.with_extension,
+            support_alt_separator: value.support_alt_separator,
+            dir: value.dir,
+            file: value.file,
+            entry: value.entry,
+        })
+    }
 }
 
 impl<'a> GenerateContext<'a> {
     /// Creates the root-level context
-    fn root(
-        main_struct_ident: &Ident,
-        root: &'a Path,
-        traits: &'a [FieldTrait],
-        with_extensions: bool,
-        dir_attr: &'a DirAttr,
-        file_attr: &'a FileAttr,
-        entry_attr: &'a EntryAttr,
-    ) -> Result<Self, syn::Error> {
-        let entry = Entry::root(root).map_err(|e| {
+    fn root(settings: &'a GenerationSettings) -> Result<Self, syn::Error> {
+        let entry = Entry::root(&settings.root).map_err(|e| {
             Error::new_spanned(
-                main_struct_ident,
-                format!("Unable to read directory '{root:?}' information: {e:?}"),
+                &settings.main_struct_ident,
+                format!(
+                    "Unable to read directory '{:?}' information: {e:?}",
+                    settings.root
+                ),
             )
         })?;
 
-        let mod_name = main_struct_ident.to_string().to_case(Case::Snake);
+        let mod_name = settings.main_struct_ident.to_string().to_case(Case::Snake);
         let mod_ident = Ident::new(&mod_name, Span::call_site());
 
-        let entry_path = Self::make_nested_path(0, entry_attr.ident().into_owned());
+        let entry_path = Self::make_nested_path(0, settings.entry.ident().into_owned());
         Ok(Self {
-            root,
             level: 0,
-            traits,
-            with_extensions,
             entry,
             names: UniqueNames::default(),
             struct_name: String::new(),
-            struct_ident: main_struct_ident.clone(),
+            struct_ident: settings.main_struct_ident.clone(),
             mod_name,
             mod_ident,
-            dir_attr,
-            file_attr,
-            entry_attr,
             entry_path,
+            settings,
         })
     }
 
@@ -746,28 +868,24 @@ impl<'a> GenerateContext<'a> {
         let mod_name = entry.path().ident.to_case(Case::Snake);
         let mod_ident = Ident::new_raw(&mod_name, Span::call_site());
         let level = self.level + 1;
-        let entry_path = Self::make_nested_path(level, self.entry_attr.ident().into_owned());
+        let entry_path = Self::make_nested_path(level, self.settings.entry.ident().into_owned());
 
         Self {
-            root: self.root,
             level,
-            traits: self.traits,
-            with_extensions: self.with_extensions,
             entry,
             names: UniqueNames::default(),
             struct_name,
             struct_ident,
             mod_name,
             mod_ident,
-            dir_attr: self.dir_attr,
-            file_attr: self.file_attr,
-            entry_attr: self.entry_attr,
             entry_path,
+            settings: self.settings,
         }
     }
 
     fn field_traits_implementation(&self) -> proc_macro2::TokenStream {
-        self.traits
+        self.settings
+            .traits
             .iter()
             .fold(proc_macro2::TokenStream::new(), |mut accum, field| {
                 accum.extend(field.implementation(self));
@@ -856,8 +974,8 @@ impl<'a> GenerateContext<'a> {
     ) -> Result<proc_macro2::TokenStream, BuildDirError> {
         let children = Entry::read(
             self.entry.path().origin_path(),
-            self.root,
-            self.with_extensions,
+            &self.settings.root,
+            self.settings.with_extension,
             &mut self.names,
         )
         .map_err(BuildDirError::ReadEntries)?;
@@ -867,7 +985,10 @@ impl<'a> GenerateContext<'a> {
             modules.extend(child.build(entries, index));
         }
 
-        let impl_stream = self.dir_attr.implementation_stream(self, entries, index);
+        let impl_stream = self
+            .settings
+            .dir
+            .implementation_stream(self, entries, index);
         let stream = quote! {
             #impl_stream
             #modules
@@ -881,7 +1002,9 @@ impl<'a> GenerateContext<'a> {
         entries: &[EntryTokens],
         index: &[IndexTokens],
     ) -> proc_macro2::TokenStream {
-        self.file_attr.implementation_stream(self, entries, index)
+        self.settings
+            .file
+            .implementation_stream(self, entries, index)
     }
 
     pub fn is_trait_implemented_for(
@@ -890,8 +1013,8 @@ impl<'a> GenerateContext<'a> {
         expected: &'static impl EmbeddedTrait,
     ) -> bool {
         match kind {
-            EntryKind::Dir => self.dir_attr.is_trait_implemented(expected),
-            EntryKind::File => self.file_attr.is_trait_implemented(expected),
+            EntryKind::Dir => self.settings.dir.is_trait_implemented(expected),
+            EntryKind::File => self.settings.file.is_trait_implemented(expected),
         }
     }
 }
@@ -994,7 +1117,7 @@ mod tests {
 
         let input = derive_input(quote! {
             #[derive(Embed)]
-            #[embed(path = #path, with_extensions = true)]
+            #[embed(path = #path, with_extension = true)]
             pub struct Assets;
         });
 

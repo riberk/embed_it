@@ -10,7 +10,10 @@ use regex::{Captures, Regex};
 use syn::parse_quote;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-use crate::unique_names::UniqueNames;
+use crate::{
+    embed::{BoolLikeEnum, WithExtension},
+    unique_names::UniqueNames,
+};
 
 const REPLACEMENT_IDENT_CHAR: char = '_';
 
@@ -79,7 +82,7 @@ impl Entry {
     pub fn read(
         path: &Path,
         root: &Path,
-        with_extensions: bool,
+        with_extension: WithExtension,
         names: &mut UniqueNames,
     ) -> Result<Vec<Entry>, ReadEntriesError> {
         let dir = read_dir(path).map_err(ReadEntriesError::UnabeToReadDir)?;
@@ -106,7 +109,7 @@ impl Entry {
                 let metadata = path
                     .metadata()
                     .map_err(ReadEntriesError::UnabeToReadMetadata)?;
-                let entry_path = EntryPath::normalize(path, root, with_extensions, names)
+                let entry_path = EntryPath::normalize(path, root, with_extension, names)
                     .map_err(ReadEntriesError::UnableToNormalizeEntryPath)?;
                 Ok(kind.entry(entry_path, metadata))
             })
@@ -182,7 +185,7 @@ impl EntryPath {
     pub fn normalize(
         origin: PathBuf,
         root: &Path,
-        with_extension: bool,
+        with_extension: WithExtension,
         names: &mut UniqueNames,
     ) -> Result<EntryPath, NormalizePathError> {
         let origin_str = origin
@@ -206,7 +209,11 @@ impl EntryPath {
             .to_str()
             .unwrap();
 
-        let ident_candidate = if with_extension { file_name } else { file_stem };
+        let ident_candidate = if with_extension.as_bool() {
+            file_name
+        } else {
+            file_stem
+        };
 
         let mut ident = String::with_capacity(ident_candidate.len());
 
@@ -314,7 +321,8 @@ mod tests {
     };
 
     use crate::{
-        fn_name, fs::NormalizePathError, test_helpers::tests_dir, unique_names::UniqueNames,
+        embed::WithExtension, fn_name, fs::NormalizePathError, test_helpers::tests_dir,
+        unique_names::UniqueNames,
     };
 
     use super::{expand_and_canonicalize, EntryPath, ExpandPathError};
@@ -341,7 +349,7 @@ mod tests {
 
     #[test]
     fn normalize_path_without_ext() {
-        let with_ext = false;
+        let with_ext = WithExtension::No;
         let mut names = UniqueNames::default();
 
         let root = Path::new("/home/anonymous");
@@ -390,7 +398,7 @@ mod tests {
 
     #[test]
     fn normalize_path_with_ext() {
-        let with_ext = true;
+        let with_ext = WithExtension::Yes;
         let root = Path::new("/home/anonymous");
         let mut names = UniqueNames::default();
 
@@ -443,7 +451,6 @@ mod tests {
 
     #[test]
     fn normalize_subpath() {
-        let with_ext = true;
         let root = Path::new("/home/anonymous");
         let mut names = UniqueNames::default();
 
@@ -456,7 +463,7 @@ mod tests {
             file_stem: "file1".to_owned(),
         };
         assert_eq!(
-            EntryPath::normalize(origin, root, with_ext, &mut names).unwrap(),
+            EntryPath::normalize(origin, root, WithExtension::Yes, &mut names).unwrap(),
             expected
         );
     }
@@ -467,7 +474,7 @@ mod tests {
             EntryPath::normalize(
                 PathBuf::from(""),
                 Path::new(""),
-                true,
+                WithExtension::Yes,
                 &mut UniqueNames::default()
             )
             .unwrap_err(),
@@ -485,7 +492,7 @@ mod tests {
             EntryPath::normalize(
                 origin.clone(),
                 Path::new(""),
-                true,
+                WithExtension::Yes,
                 &mut UniqueNames::default()
             )
             .unwrap_err(),
@@ -495,7 +502,7 @@ mod tests {
             EntryPath::normalize(
                 origin.clone(),
                 Path::new(""),
-                false,
+                WithExtension::No,
                 &mut UniqueNames::default()
             )
             .unwrap_err(),
@@ -507,7 +514,7 @@ mod tests {
     fn normalize_non_unique_names() {
         let mut names = UniqueNames::default();
         let root = Path::new("/home/anonymous");
-        let with_ext = true;
+        let with_ext = WithExtension::Yes;
 
         let origin = root.join("file1.txt");
         let expected = entry_path(&origin, "file1.txt", "file1_txt");
