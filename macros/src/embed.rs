@@ -926,11 +926,7 @@ impl<'a> GenerateContext<'a> {
         parent_index.extend(index.into_iter().map(|mut i| {
             let prev_path = i.struct_path;
             i.struct_path = parse_quote!(#mod_ident::#prev_path);
-            i.relative_path = Path::new(index_relative_path)
-                .join(i.relative_path)
-                .to_str()
-                .unwrap()
-                .to_owned();
+            i.relative_path = format!("{index_relative_path}/{}", i.relative_path);
             i
         }));
 
