@@ -22,7 +22,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             paths,
-            ["same+txt", "same.txt", "same_txt", "same*txt", "same-txt", "same?txt"]
+            ["same+txt", "same.txt", "same_txt", "same)txt", "same-txt", "same=txt"]
         );
     }
 
@@ -39,7 +39,7 @@ mod tests {
         );
         assert_eq!(
             SameNames.same_txt_3().path().relative_path_str(),
-            "same*txt"
+            "same)txt"
         );
         assert_eq!(
             SameNames.same_txt_4().path().relative_path_str(),
@@ -47,7 +47,7 @@ mod tests {
         );
         assert_eq!(
             SameNames.same_txt_5().path().relative_path_str(),
-            "same?txt"
+            "same=txt"
         );
     }
 }
