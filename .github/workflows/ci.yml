@@ -9,10 +9,11 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  IS_TRIGGERED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') }}
 
 jobs:
   build_and_test:
-    if: github.event.review.state == 'approved'
+    if: env.IS_TRIGGERED == 'true'
     name: Build and test
     runs-on: ${{ matrix.platform }}
     strategy:
@@ -31,7 +32,7 @@ jobs:
       - run: cargo test --verbose --all-features
 
   fmt:
-    if: github.event.review.state == 'approved'
+    if: env.IS_TRIGGERED == 'true'
     name: Latest Dependencies
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -43,7 +44,7 @@ jobs:
       - run: cargo fmt --check --verbose
 
   msrv:
-    if: github.event.review.state == 'approved'
+    if: env.IS_TRIGGERED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
