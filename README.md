@@ -1,4 +1,7 @@
 # embed_it
+[![Build Status](https://github.com/riberk/embed_it/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/riberk/embed_it/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/embed_it.svg)](https://crates.io/crates/embed_it)
+
 Include any directory as a struct and the entire tree will be produced into rust structures and traits
 
 Imagine a project structure like that
