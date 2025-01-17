@@ -15,7 +15,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@cargo-llvm-cov
       - uses: taiki-e/install-action@nextest
-      - run: cargo llvm-cov nextest --all-features --workspace --lcov --output-path --ignore-filename-regex=".+/macros/src/test_helpers.rs" lcov.info
+      - run: cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info --ignore-filename-regex=".+/macros/src/test_helpers.rs"
       - uses: codecov/codecov-action@v3
         with:
           files: lcov.info
