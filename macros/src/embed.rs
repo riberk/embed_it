@@ -1027,11 +1027,12 @@ pub enum BuildDirError {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::{create_dir_all, remove_dir_all};
 
     use crate::{
         fn_name,
-        test_helpers::{create_file, derive_input, tests_dir, PrintToStdOut},
+        test_helpers::{
+            create_dir_all, create_file, derive_input, remove_dir_all, tests_dir, PrintToStdOut,
+        },
     };
 
     use super::impl_embed;
@@ -1041,13 +1042,13 @@ mod tests {
     fn check_macros_simple() {
         let current_dir = tests_dir().join(fn_name!());
         if current_dir.exists() {
-            remove_dir_all(&current_dir).unwrap();
+            remove_dir_all(&current_dir);
         }
-        create_dir_all(&current_dir).unwrap();
+        create_dir_all(&current_dir);
         create_file(current_dir.join("file1.txt"), b"hello");
 
         let subdir1 = current_dir.join("subdir1");
-        create_dir_all(&subdir1).unwrap();
+        create_dir_all(&subdir1);
         create_file(subdir1.join("file1.txt"), b"hello");
 
         let path = current_dir.to_str().unwrap();
@@ -1065,19 +1066,19 @@ mod tests {
     fn check_macros() {
         let current_dir = tests_dir().join(fn_name!());
         if current_dir.exists() {
-            remove_dir_all(&current_dir).unwrap();
+            remove_dir_all(&current_dir);
         }
-        create_dir_all(&current_dir).unwrap();
+        create_dir_all(&current_dir);
         create_file(current_dir.join("file1.txt"), b"hello");
         create_file(current_dir.join("file2.txt"), b"world");
 
         let subdir1 = current_dir.join("subdir1");
-        create_dir_all(&subdir1).unwrap();
+        create_dir_all(&subdir1);
         create_file(subdir1.join("file1.txt"), b"hello");
         create_file(subdir1.join("file2.txt"), b"world");
 
         let subdir2 = current_dir.join("subdir2");
-        create_dir_all(&subdir2).unwrap();
+        create_dir_all(&subdir2);
         create_file(subdir2.join("file1.txt"), b"hello");
         create_file(subdir2.join("file2.txt"), b"world");
 
@@ -1099,12 +1100,12 @@ mod tests {
     fn check_macros_the_same_normalized_names() {
         let current_dir = tests_dir().join(fn_name!());
         if current_dir.exists() {
-            remove_dir_all(&current_dir).unwrap();
+            remove_dir_all(&current_dir);
         }
-        create_dir_all(&current_dir).unwrap();
-        create_dir_all(current_dir.join("subdir.txt")).unwrap();
-        create_dir_all(current_dir.join("subdir_txt")).unwrap();
-        create_dir_all(current_dir.join("subdir+txt")).unwrap();
+        create_dir_all(&current_dir);
+        create_dir_all(current_dir.join("subdir.txt"));
+        create_dir_all(current_dir.join("subdir_txt"));
+        create_dir_all(current_dir.join("subdir+txt"));
         create_file(current_dir.join("subdir*txt"), b"hello");
         create_file(current_dir.join("subdir?txt"), b"hello");
         create_file(current_dir.join("subdir-txt"), b"hello");

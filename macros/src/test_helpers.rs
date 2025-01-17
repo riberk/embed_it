@@ -72,13 +72,26 @@ pub fn tests_dir() -> &'static Path {
 }
 
 pub fn create_file(path: impl AsRef<Path>, content: &[u8]) {
+    let path = path.as_ref();
     fs::OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(path)
-        .unwrap()
+        .unwrap_or_else(|e| panic!("Unable to open file '{path:?}': {e:#?}"))
         .write_all(content)
-        .unwrap();
+        .unwrap_or_else(|e| panic!("Unable to write a content into '{path:?}': {e:#?}"));
+}
+
+pub fn create_dir_all(path: impl AsRef<Path>) {
+    let path = path.as_ref();
+    std::fs::create_dir_all(path)
+        .unwrap_or_else(|e| panic!("Unable to create dir '{path:?}': {e:#?}"));
+}
+
+pub fn remove_dir_all(path: impl AsRef<Path>) {
+    let path = path.as_ref();
+    std::fs::remove_dir_all(path)
+        .unwrap_or_else(|e| panic!("Unable to remove dir '{path:?}': {e:#?}"));
 }
 
 #[macro_export]

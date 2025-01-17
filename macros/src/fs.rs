@@ -282,6 +282,12 @@ pub fn expand_and_canonicalize(
         Ok(value)
     };
     let path = replace_all(&re, input, replacement)?;
+
+    let path = if std::path::MAIN_SEPARATOR == '\\' {
+        path.replace("/", std::path::MAIN_SEPARATOR_STR)
+    } else {
+        path.replace("\\", std::path::MAIN_SEPARATOR_STR)
+    };
     std::fs::canonicalize(&path).map_err(|e| ExpandPathError::Fs(path.clone(), e))
 }
 
