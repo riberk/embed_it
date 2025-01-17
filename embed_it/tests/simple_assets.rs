@@ -18,7 +18,7 @@ mod tests {
         expected: &str,
     ) -> T {
         let entry = dir
-            .get(path.as_ref())
+            .get(path)
             .unwrap_or_else(|| panic!("Unable to find '{}'", path));
         f(entry).unwrap_or_else(|| panic!("'{}' is not a {}", path, expected))
     }
@@ -123,8 +123,8 @@ mod tests {
 
     #[test]
     fn get() {
-        assert!(Assets.get("".as_ref()).is_none());
-        assert!(Assets.get("hello".as_ref()).is_none());
+        assert!(Assets.get("").is_none());
+        assert!(Assets.get("hello").is_none());
 
         assert_eq!(get_file(&Assets, "hello.txt").content(), b"hello");
         assert_eq!(get_file(&Assets, "one.txt").content(), b"one");

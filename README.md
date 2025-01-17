@@ -76,7 +76,7 @@ pub struct Assets;
 |-------------|-------------------------|-----------------|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Path**    | [`crate::EntryPath`]    | any             |                                                                     | Provides full information about a path of an entry                                                                                                                |
 | **Entries** | *\<auto generated\>*    | dir             | `fn entries(&self) -> &'static [Entry]`                             | Provides direct children of a dir                                                                                                                                 |
-| **Index**   | *\<auto generated\>*    | dir             | `fn get(&self, path: &::std::path::Path) -> Option<&'static Entry>` | Provides fast access (`HashMap`) to all children (recursively). It constructs hash set on every level dir and might use some memory if there are a lot of entries |
+| **Index**   | *\<auto generated\>*    | dir             | `fn get(&self, path: &str) -> Option<&'static Entry>` | Provides fast access (`HashMap`) to all children (recursively). It constructs hash set on every level dir and might use some memory if there are a lot of entries |
 | **Meta**    | [`crate::Meta`]         | any             |                                                                     | Provides metadata of an entry                                                                                                                                     |
 | **Debug**   | [`std::fmt::Debug`]     | any             |                                                                     | Debugs structs                                                                                                                                                    |
 | **Content** | [`crate::Content`]      | file            |                                                                     | Provides content of a file                                                                                                                                        |
@@ -400,15 +400,15 @@ pub enum Entry {
 }
 
 trait Index {
-    fn get(&self, path: &::std::path::Path) -> Option<&'static Entry>;
+    fn get(&self, path: &str) -> Option<&'static Entry>;
 }
 
 #[automatically_derived]
 impl Index for Assets {
-    fn get(&self, path: &::std::path::Path) -> Option<&'static Entry> {
+    fn get(&self, path: &str) -> Option<&'static Entry> {
         static VALUE: ::std::sync::LazyLock<
             ::std::collections::HashMap<
-                &'static ::std::path::Path,
+                &'static str,
                 Entry,
             >,
         > = ::std::sync::LazyLock::new(|| {

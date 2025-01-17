@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
     fmt::{Debug, Display},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use convert_case::{Case, Casing};
