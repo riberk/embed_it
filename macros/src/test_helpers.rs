@@ -104,5 +104,6 @@ macro_rules! fn_name {
         let name = type_name_of(f);
         name.trim_end_matches("::f")
             .trim_end_matches("::{{closure}}")
+            .replace(":", "_")
     }};
 }
