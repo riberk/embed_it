@@ -60,7 +60,7 @@ pub fn tests_dir() -> &'static Path {
     DIR.get_or_init(|| {
         let path = target_dir().join("test_data");
         if !path.exists() {
-            create_dir(&path).unwrap_or_else(|e| panic!("Unable to create dir '{path:?}': {e:#?}"));
+            create_dir_all(&path);
         }
 
         if !path.is_dir() {
