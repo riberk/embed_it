@@ -22,8 +22,6 @@ darling = "0.20"
 convert_case = "0.7.1"
 unicode-ident = "1"
 regex = { version = "1.5.5" }
-strum = "0.26"
-strum_macros = "0.26"
 glob = { version = "0.3"}
 
 [dev-dependencies]

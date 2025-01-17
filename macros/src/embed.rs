@@ -1,473 +1,28 @@
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    fmt::{Debug, Display},
-    path::PathBuf,
-};
+pub mod attributes;
+pub mod bool_like_enum;
+pub mod pattern;
+pub mod regex;
 
+use std::{borrow::Cow, collections::HashSet, path::PathBuf};
+
+use attributes::{
+    dir::DirAttr, embed::EmbedInput, entry::EntryAttr, field::FieldTraits, file::FileAttr,
+    support_alt_separator::SupportAltSeparator, with_extension::WithExtension,
+};
 use convert_case::{Case, Casing};
-use darling::{FromDeriveInput, FromMeta};
+use darling::FromDeriveInput;
 use proc_macro2::Span;
 use quote::quote;
-use strum::VariantArray;
 use syn::{
     parse_quote, punctuated::Punctuated, token::PathSep, DeriveInput, Error, Ident, PathArguments,
     PathSegment,
 };
 
 use crate::{
-    embedded_traits::{
-        content::ContentTrait, debug::DebugTrait, entries::EntriesTrait, index::IndexTrait,
-        meta::MetaTrait, path::PathTrait, EmbeddedTrait, TraitAttr, EMBEDED_TRAITS,
-    },
-    fs::{expand_and_canonicalize, get_env, Entry, EntryKind, EntryPath, ReadEntriesError},
+    embedded_traits::{EmbeddedTrait, TraitAttr, EMBEDED_TRAITS},
+    fs::{expand_and_canonicalize, get_env, Entry, EntryKind, ReadEntriesError},
     unique_names::UniqueNames,
 };
-
-#[derive(Debug, FromDeriveInput)]
-#[darling(attributes(embed), supports(struct_unit))]
-struct EmbedInput {
-    ident: syn::Ident,
-
-    path: String,
-
-    #[darling(default)]
-    with_extension: WithExtension,
-
-    /// If true, before `get` all `\\` characters
-    /// will be replaced by `/`. Default: `false`
-    #[darling(default)]
-    support_alt_separator: SupportAltSeparator,
-
-    #[darling(default, multiple, rename = "field")]
-    fields: Vec<FieldAttr>,
-
-    #[darling(default)]
-    dir: DirAttr,
-
-    #[darling(default)]
-    file: FileAttr,
-
-    #[darling(default)]
-    entry: EntryAttr,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum WithExtension {
-    #[default]
-    No = 0,
-    Yes = 1,
-}
-
-impl BoolLikeEnum for WithExtension {
-    fn yes() -> Self {
-        Self::Yes
-    }
-
-    fn no() -> Self {
-        Self::No
-    }
-}
-
-pub trait BoolLikeEnum: Sized + Eq {
-    const HELP_MESSAGE: &str = r#"You should use true and false literals (without quotes), chars 'y', 't', 'n', 'f', or strings "y", "t", "yes", "true", "n", "f", "no", "false""#;
-    fn yes() -> Self;
-    fn no() -> Self;
-
-    fn as_bool(&self) -> bool {
-        self == &Self::yes()
-    }
-
-    fn error(v: impl Display) -> darling::Error {
-        darling::Error::custom(format!(
-            "Unable to parse value '{v}'.{}",
-            Self::HELP_MESSAGE
-        ))
-    }
-
-    fn darling_from_bool(value: bool) -> darling::Result<Self> {
-        match value {
-            true => Ok(Self::yes()),
-            false => Ok(Self::no()),
-        }
-    }
-
-    fn darling_from_char(value: char) -> darling::Result<Self> {
-        match value {
-            'y' | 't' => Self::darling_from_bool(true),
-            'f' | 'n' => Self::darling_from_bool(false),
-            _ => Err(Self::error(value)),
-        }
-    }
-
-    fn darling_from_string(value: &str) -> darling::Result<Self> {
-        match value {
-            "yes" | "true" | "t" | "y" => Self::darling_from_bool(true),
-            "no" | "false" | "f" | "n" => Self::darling_from_bool(false),
-            _ => Err(Self::error(value)),
-        }
-    }
-}
-
-impl FromMeta for WithExtension {
-    fn from_bool(value: bool) -> darling::Result<Self> {
-        Self::darling_from_bool(value)
-    }
-
-    fn from_char(value: char) -> darling::Result<Self> {
-        Self::darling_from_char(value)
-    }
-
-    fn from_string(value: &str) -> darling::Result<Self> {
-        Self::darling_from_string(value)
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum SupportAltSeparator {
-    #[default]
-    No = 0,
-    Yes = 1,
-}
-
-impl BoolLikeEnum for SupportAltSeparator {
-    fn yes() -> Self {
-        Self::Yes
-    }
-
-    fn no() -> Self {
-        Self::No
-    }
-}
-
-impl FromMeta for SupportAltSeparator {
-    fn from_bool(value: bool) -> darling::Result<Self> {
-        Self::darling_from_bool(value)
-    }
-
-    fn from_char(value: char) -> darling::Result<Self> {
-        Self::darling_from_char(value)
-    }
-
-    fn from_string(value: &str) -> darling::Result<Self> {
-        Self::darling_from_string(value)
-    }
-}
-
-#[derive(Debug, FromMeta)]
-pub struct DirAttr {
-    #[darling(default)]
-    trait_name: Option<Ident>,
-
-    #[darling(default = default_dir_traits, multiple, rename = "derive")]
-    traits: Vec<DirTrait>,
-
-    #[darling(default)]
-    field_factory_trait_name: Option<Ident>,
-}
-
-impl Default for DirAttr {
-    fn default() -> Self {
-        Self {
-            trait_name: None,
-            traits: default_dir_traits(),
-            field_factory_trait_name: None,
-        }
-    }
-}
-
-#[derive(Debug, FromMeta, strum_macros::VariantArray, Clone, Copy, PartialEq, Eq)]
-#[darling(rename_all = "PascalCase")]
-pub enum DirTrait {
-    Path,
-    Entries,
-    Index,
-    Meta,
-    Debug,
-}
-
-impl DirTrait {
-    fn as_embedded_trait(&self) -> &'static dyn EmbeddedTrait {
-        match self {
-            DirTrait::Path => &PathTrait,
-            DirTrait::Entries => &EntriesTrait,
-            DirTrait::Index => &IndexTrait,
-            DirTrait::Meta => &MetaTrait,
-            DirTrait::Debug => &DebugTrait,
-        }
-    }
-}
-
-#[derive(Debug, FromMeta, strum_macros::VariantArray, Clone, Copy, PartialEq, Eq)]
-#[darling(rename_all = "PascalCase")]
-pub enum FileTrait {
-    Path,
-    Content,
-    Meta,
-    Debug,
-}
-
-impl FileTrait {
-    fn as_embedded_trait(&self) -> &'static dyn EmbeddedTrait {
-        match self {
-            FileTrait::Path => &PathTrait,
-            FileTrait::Content => &ContentTrait,
-            FileTrait::Meta => &MetaTrait,
-            FileTrait::Debug => &DebugTrait,
-        }
-    }
-}
-
-fn default_dir_traits() -> Vec<DirTrait> {
-    DirTrait::VARIANTS.to_vec()
-}
-
-fn default_file_traits() -> Vec<FileTrait> {
-    FileTrait::VARIANTS.to_vec()
-}
-
-#[derive(Debug, FromMeta)]
-pub struct FileAttr {
-    #[darling(default)]
-    trait_name: Option<Ident>,
-
-    #[darling(default = default_file_traits, multiple, rename = "derive")]
-    traits: Vec<FileTrait>,
-
-    #[darling(default)]
-    field_factory_trait_name: Option<Ident>,
-}
-
-impl Default for FileAttr {
-    fn default() -> Self {
-        Self {
-            trait_name: None,
-            traits: default_file_traits(),
-            field_factory_trait_name: None,
-        }
-    }
-}
-
-impl TraitAttr for DirAttr {
-    const DEFAULT_TRAIT_NAME: &str = "Dir";
-    const DEFAULT_FIELD_FACTORY_TRAIT_NAME: &str = "DirFieldFactory";
-
-    fn trait_name(&self) -> Option<&Ident> {
-        self.trait_name.as_ref()
-    }
-
-    fn field_factory_trait_name(&self) -> Option<&Ident> {
-        self.field_factory_trait_name.as_ref()
-    }
-
-    fn traits(&self) -> impl Iterator<Item = &'static dyn EmbeddedTrait> {
-        self.traits.iter().map(|v| v.as_embedded_trait())
-    }
-
-    fn struct_impl(
-        &self,
-        ctx: &GenerateContext<'_>,
-        entries: &[EntryTokens],
-    ) -> proc_macro2::TokenStream {
-        let struct_ident = &ctx.struct_ident;
-        let methods = entries.iter().fold(quote! {}, |mut acc, entry| {
-            let EntryTokens {
-                struct_path,
-                field_ident,
-                ..
-            } = entry;
-            acc.extend(quote! {
-                pub fn #field_ident(&self) -> &'static #struct_path {
-                    &#struct_path
-                }
-            });
-            acc
-        });
-
-        quote! {
-            impl #struct_ident {
-                #methods
-            }
-        }
-    }
-}
-
-impl TraitAttr for FileAttr {
-    const DEFAULT_TRAIT_NAME: &str = "File";
-    const DEFAULT_FIELD_FACTORY_TRAIT_NAME: &str = "FileFieldFactory";
-
-    fn trait_name(&self) -> Option<&Ident> {
-        self.trait_name.as_ref()
-    }
-
-    fn field_factory_trait_name(&self) -> Option<&Ident> {
-        self.field_factory_trait_name.as_ref()
-    }
-
-    fn traits(&self) -> impl Iterator<Item = &'static dyn EmbeddedTrait> {
-        self.traits.iter().map(|v| v.as_embedded_trait())
-    }
-
-    fn struct_impl(&self, _: &GenerateContext<'_>, _: &[EntryTokens]) -> proc_macro2::TokenStream {
-        quote! {}
-    }
-}
-
-#[derive(Debug, Default, FromMeta)]
-pub struct EntryAttr {
-    #[darling(default)]
-    struct_name: Option<Ident>,
-}
-
-impl EntryAttr {
-    pub fn ident(&self) -> Cow<'_, Ident> {
-        match &self.struct_name {
-            Some(ident) => Cow::Borrowed(ident),
-            None => Cow::Owned(Ident::new("Entry", Span::call_site())),
-        }
-    }
-
-    pub fn implementation(
-        &self,
-        dir_attr: &DirAttr,
-        file_attr: &FileAttr,
-    ) -> proc_macro2::TokenStream {
-        let dir_traits = dir_attr
-            .traits()
-            .map(|v| (v.id(), v))
-            .collect::<HashMap<_, _>>();
-        let file_traits = file_attr
-            .traits()
-            .map(|v| (v.id(), v))
-            .collect::<HashMap<_, _>>();
-        let ident = self.ident();
-        let dir_trait = dir_attr.trait_ident();
-        let file_trait = file_attr.trait_ident();
-        let mut stream = quote! {
-            pub enum #ident {
-                Dir(&'static dyn #dir_trait),
-                File(&'static dyn #file_trait),
-            }
-
-            impl #ident {
-                /// If it's a dir returns Some, else None
-                pub fn dir(&self) -> Option<&'static dyn #dir_trait> {
-                    match self {
-                        Self::File(_) => None,
-                        Self::Dir(d) => Some(*d),
-                    }
-                }
-
-                /// If it's a file returns Some, else None
-                pub fn file(&self) -> Option<&'static dyn #file_trait> {
-                    match self {
-                        Self::File(f) => Some(*f),
-                        Self::Dir(_) => None,
-                    }
-                }
-            }
-
-            impl From<&'static dyn #file_trait> for #ident {
-                fn from(value: &'static dyn #file_trait) -> Self {
-                    Self::File(value)
-                }
-            }
-
-            impl From<&'static dyn #dir_trait> for #ident {
-                fn from(value: &'static dyn #dir_trait) -> Self {
-                    Self::Dir(value)
-                }
-            }
-        };
-
-        for (dir_trait_id, dir_trait) in dir_traits {
-            if file_traits.contains_key(dir_trait_id) {
-                let trait_path = dir_trait.path(0);
-                let impl_body = dir_trait.entry_impl_body();
-                stream.extend(quote! {
-                    impl #trait_path for #ident {
-                        #impl_body
-                    }
-                });
-            }
-        }
-
-        stream
-    }
-}
-
-#[derive(Debug, FromMeta)]
-pub struct FieldAttr {
-    regex: Option<regex::EntryRegex>,
-
-    pattern: Option<pattern::EntryPattern>,
-
-    #[darling(default)]
-    target: EntryKind,
-
-    factory: syn::Path,
-
-    name: syn::Ident,
-
-    trait_name: Option<syn::Ident>,
-}
-
-mod pattern {
-    use darling::FromMeta;
-    use glob::Pattern;
-
-    use super::EntryPath;
-
-    #[derive(Debug, Clone)]
-    pub struct EntryPattern(Pattern);
-
-    impl FromMeta for EntryPattern {
-        fn from_string(value: &str) -> darling::Result<Self> {
-            Pattern::new(value)
-                .map_err(|e| {
-                    darling::Error::custom(format!(
-                        "'{}' is not a valid glob pattern: {:#?}",
-                        value, e
-                    ))
-                })
-                .map(Self)
-        }
-    }
-
-    impl EntryPattern {
-        pub fn is_match(&self, path: &EntryPath) -> bool {
-            self.0.matches_path(path.relative_path())
-        }
-    }
-}
-
-mod regex {
-    use darling::FromMeta;
-    use regex::Regex;
-
-    use super::EntryPath;
-
-    #[derive(Debug, Clone)]
-    pub struct EntryRegex(Regex);
-
-    impl FromMeta for EntryRegex {
-        fn from_string(value: &str) -> darling::Result<Self> {
-            Regex::new(value)
-                .map_err(|e| {
-                    darling::Error::custom(format!("'{}' is not a valid regex: {:#?}", value, e))
-                })
-                .map(Self)
-        }
-    }
-
-    impl EntryRegex {
-        pub fn is_match(&self, path: &EntryPath) -> bool {
-            self.0.is_match(&path.relative)
-        }
-    }
-}
 
 pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream, syn::Error> {
     let main_struct_ident = &input.ident;
@@ -488,7 +43,7 @@ pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream,
     let dir_trait_definition = settings.dir.definition();
     let file_trait_definition = settings.file.definition();
 
-    let field_traits_definition = generate_field_trait_definitions(&settings.traits);
+    let field_traits_definition = settings.traits.definitions();
     let field_traits_implementation = context.field_traits_implementation();
 
     let embedded_traits_definition =
@@ -510,17 +65,6 @@ pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream,
         #impls
     };
     Ok(stream)
-}
-
-fn generate_field_trait_definitions(traits: &[FieldTrait]) -> proc_macro2::TokenStream {
-    let mut stream = proc_macro2::TokenStream::new();
-
-    for field in traits {
-        stream.extend(field.definition());
-    }
-    quote! {
-        #stream
-    }
 }
 
 fn generate_embedded_trait_definitions(
@@ -546,9 +90,8 @@ fn generate_embedded_trait_definitions(
     for embedded_trait in traits {
         stream.extend(embedded_trait.definition(&entry_path));
     }
-    quote! {
-        #stream
-    }
+
+    stream
 }
 
 fn generate_factory_trait_definition(attr: &impl TraitAttr) -> proc_macro2::TokenStream {
@@ -559,109 +102,6 @@ fn generate_factory_trait_definition(attr: &impl TraitAttr) -> proc_macro2::Toke
         pub trait #ident {
             type Field;
             fn create<T: #trait_ident + ?Sized>(data: &T) -> Self::Field;
-        }
-    }
-}
-
-pub struct FieldTrait {
-    field_ident: syn::Ident,
-    trait_ident: syn::Ident,
-    bound_ident: syn::Ident,
-    factory_trait: syn::Ident,
-    factory: syn::Path,
-    regex: Option<regex::EntryRegex>,
-    pattern: Option<pattern::EntryPattern>,
-
-    target: EntryKind,
-}
-
-impl FieldTrait {
-    pub fn create(field_attr: FieldAttr, dir_attr: &DirAttr, file_attr: &FileAttr) -> Self {
-        let trait_ident = field_attr.trait_name.unwrap_or_else(|| {
-            let name = format!("{}Field", field_attr.name.to_string().to_case(Case::Pascal));
-            Ident::new_raw(&name, Span::call_site())
-        });
-
-        let (bound_ident, factory_trait) = match field_attr.target {
-            EntryKind::Dir => (dir_attr.trait_ident(), dir_attr.field_factory_trait_ident()),
-            EntryKind::File => (
-                file_attr.trait_ident(),
-                file_attr.field_factory_trait_ident(),
-            ),
-        };
-
-        Self {
-            field_ident: field_attr.name,
-            trait_ident,
-            bound_ident: bound_ident.into_owned(),
-            factory_trait: factory_trait.into_owned(),
-            regex: field_attr.regex,
-            pattern: field_attr.pattern,
-            target: field_attr.target,
-            factory: field_attr.factory,
-        }
-    }
-
-    pub fn is_match(&self, entry: &Entry) -> bool {
-        entry.kind() == self.target
-            && self
-                .regex
-                .as_ref()
-                .map(|v| v.is_match(entry.path()))
-                .unwrap_or(true)
-            && self
-                .pattern
-                .as_ref()
-                .map(|v| v.is_match(entry.path()))
-                .unwrap_or(true)
-    }
-
-    pub fn definition(&self) -> proc_macro2::TokenStream {
-        let FieldTrait {
-            field_ident,
-            trait_ident,
-            bound_ident,
-            factory_trait,
-            factory,
-            ..
-        } = self;
-
-        quote! {
-            pub trait #trait_ident: #bound_ident {
-                fn #field_ident(&self) -> &'static <#factory as #factory_trait>::Field;
-            }
-        }
-    }
-
-    pub fn implementation(&self, ctx: &GenerateContext<'_>) -> proc_macro2::TokenStream {
-        if !self.is_match(&ctx.entry) {
-            return Default::default();
-        }
-
-        let FieldTrait {
-            field_ident,
-            trait_ident,
-            factory_trait,
-            factory,
-            ..
-        } = self;
-
-        let struct_ident = &ctx.struct_ident;
-        let factory = fix_path(factory, ctx.level);
-        let trait_path = ctx.make_level_path(trait_ident.clone());
-        let factory_trait_path = ctx.make_level_path(factory_trait.clone());
-
-        quote! {
-            #[automatically_derived]
-            impl #trait_path for #struct_ident {
-                fn #field_ident(&self) -> &'static <#factory as #factory_trait_path>::Field {
-                    static VALUE: ::std::sync::OnceLock<<#factory as #factory_trait_path>::Field> = ::std::sync::OnceLock::new();
-
-                    VALUE.get_or_init(|| {
-                        <#factory as #factory_trait_path>::create(self)
-                    })
-                }
-            }
         }
     }
 }
@@ -755,6 +195,7 @@ pub struct GenerateContext<'a> {
     pub settings: &'a GenerationSettings,
 }
 
+#[derive(Debug)]
 pub struct GenerationSettings {
     pub main_struct_ident: syn::Ident,
 
@@ -762,7 +203,7 @@ pub struct GenerationSettings {
     pub root: PathBuf,
 
     /// User defined field traits
-    pub traits: Vec<FieldTrait>,
+    pub traits: FieldTraits,
 
     /// Should we use extensions in idents
     pub with_extension: WithExtension,
@@ -794,29 +235,8 @@ impl TryFrom<EmbedInput> for GenerationSettings {
                 ),
             )
         })?;
-
-        let fields_len = value.fields.len();
-        let mut trait_names = HashSet::new();
-        let mut traits = Vec::with_capacity(fields_len);
-
-        for field_attr in value.fields {
-            let field_trait = FieldTrait::create(field_attr, &value.dir, &value.file);
-            if !trait_names.insert(field_trait.trait_ident.clone()) {
-                return Err(Error::new_spanned(
-                    &value.ident,
-                    format!(
-                        r#"There are some fields with the same trait names. 
-    Macros will generate a trait definition for each 'field' and a trait name will be an ident 
-    from an attribute 'name' of a 'field' in PascalCase with a suffix 'Field'. 
-    Change your field names or use an explicit trait name with a 'trait_name' attribute of a 'field'. 
-    REMARK: fileds instead may have the same names, because each field generates a trait.
-    The error has been produced by a trait name '{}' on a field '{}'"#,
-                        field_trait.trait_ident, field_trait.field_ident
-                    ),
-                ));
-            }
-            traits.push(field_trait);
-        }
+        let traits =
+            FieldTraits::try_from_attrs(value.fields, &value.dir, &value.file, &value.ident)?;
 
         Ok(Self {
             main_struct_ident: value.ident,
@@ -1035,8 +455,10 @@ mod tests {
         },
     };
 
-    use super::impl_embed;
+    use super::{attributes::embed::EmbedInput, fix_path, impl_embed, GenerationSettings};
+    use proc_macro2::Span;
     use quote::quote;
+    use syn::{punctuated::Punctuated, Ident};
 
     #[test]
     fn check_macros_simple() {
@@ -1119,5 +541,144 @@ mod tests {
         });
 
         impl_embed(input).print_to_std_out();
+    }
+
+    #[test]
+    fn all_attributes() {
+        let current_dir = tests_dir().join(fn_name!());
+        if current_dir.exists() {
+            remove_dir_all(&current_dir);
+        }
+        create_dir_all(&current_dir);
+        create_dir_all(current_dir.join("subdir.txt"));
+        create_dir_all(current_dir.join("subdir_txt"));
+        create_dir_all(current_dir.join("subdir+txt"));
+        create_file(current_dir.join("subdir)txt"), b"hello");
+        create_file(current_dir.join("subdir=txt"), b"hello");
+        create_file(current_dir.join("subdir-txt"), b"hello");
+
+        let path = current_dir.to_str().unwrap();
+
+        let input = derive_input(quote! {
+            #[derive(Embed)]
+            #[embed(
+                path = #path,
+                dir(
+                    trait_name = AssetsDir,
+                    field_factory_trait_name = AssetsDirFieldFactory,
+                    derive(Path),
+                    derive(Entries),
+                    derive(Index),
+                    derive(Meta),
+                    derive(Debug),
+                ),
+                file(
+                    trait_name = AssetsFile,
+                    field_factory_trait_name = AssetsFileFieldFactory,
+                    derive(Path),
+                    derive(Meta),
+                    derive(Content),
+                    derive(Debug),
+                ),
+                entry(
+                    struct_name = AssetsEntry,
+                ),
+                with_extension = true,
+                field(
+                    name = as_str,
+                    trait_name = AssetsAsStrField,
+                    factory = crate::AsStr,
+                    pattern = "*.txt",
+                    regex = ".+",
+                    target = "file"
+                ),
+                field(
+                    name = children,
+                    trait_name = AssetsChildrenField,
+                    factory = self::Children,
+                    pattern = "?*",
+                    regex = ".+",
+                    target = "dir"
+                ),
+                field(
+                    name = root_children,
+                    trait_name = AssetsRootChildrenField,
+                    factory = ::other::Children,
+                    regex = "",
+                    target = "dir"
+                ),
+            )]
+            pub struct Assets;
+        });
+
+        impl_embed(input).print_to_std_out();
+    }
+
+    #[test]
+    fn same_field_traits() {
+        let current_dir = tests_dir().join(fn_name!());
+        let path = current_dir.to_str().unwrap();
+        if current_dir.exists() {
+            remove_dir_all(&current_dir);
+        }
+        create_dir_all(&current_dir);
+
+        let input = derive_input(quote! {
+            #[derive(Embed)]
+            #[embed(
+                path = #path,
+                field(name = as_str, trait_name = AssetsAsStrField, factory = AsStr),
+                field(name = as_str2, trait_name = AssetsAsStrField, factory = AsStr),
+            )]
+            pub struct Assets;
+        });
+
+        let err = format!("{:?}", impl_embed(input).unwrap_err());
+        assert!(
+            err.contains("AssetsAsStrField"),
+            "Unable to find a trait name in a error string: '{}'",
+            err
+        );
+        assert!(
+            err.contains("as_str2"),
+            "Unable to find a method name in a error string: '{}'",
+            err
+        );
+    }
+
+    #[test]
+    fn generation_settings_creation_error_path_does_not_exist() {
+        let current_dir = tests_dir().join(fn_name!());
+        if current_dir.exists() {
+            remove_dir_all(&current_dir);
+        }
+
+        let path_str = current_dir.to_str().unwrap();
+        let input = EmbedInput {
+            ident: Ident::new("sss", Span::call_site()),
+            path: path_str.to_owned(),
+            with_extension: Default::default(),
+            support_alt_separator: Default::default(),
+            fields: Default::default(),
+            dir: Default::default(),
+            file: Default::default(),
+            entry: Default::default(),
+        };
+        let err = GenerationSettings::try_from(input).unwrap_err();
+        let err_str = format!("{err:?}");
+        assert!(
+            err_str.contains(path_str),
+            "Unable to find path '{path_str:?}' in error debug output '{err_str}'"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Empty path")]
+    fn fix_path_panics_if_empty() {
+        let path = syn::Path {
+            leading_colon: None,
+            segments: Punctuated::new(),
+        };
+        fix_path(&path, 10);
     }
 }

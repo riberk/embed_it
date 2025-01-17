@@ -26,9 +26,10 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
           components: "clippy"
+      - uses: taiki-e/install-action@nextest
       - run: cargo clippy --verbose --all-features -- -D warnings
       - run: cargo build --verbose --all-features
-      - run: cargo test --verbose --all-features
+      - run: cargo nextest run --verbose --all-features
         env:
           RUST_BACKTRACE: 1
 
@@ -50,7 +51,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.81
+      - uses: taiki-e/install-action@nextest
       - run: cargo build --verbose --all-features
-      - run: cargo test --verbose --all-features
+      - run: cargo nextest run --verbose --all-features
         env:
           RUST_BACKTRACE: 1

@@ -45,3 +45,40 @@ impl EmbeddedPath {
         self.stem
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::EmbeddedPath;
+
+    #[test]
+    fn display() {
+        let path = EmbeddedPath::new("a/b/c/d.txt", "aaa", "bbb");
+        assert_eq!(path.relative_path, &format!("{path}"));
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn relative_path() {
+        use std::path::Path;
+
+        let path = EmbeddedPath::new("a\\b\\c\\d.txt", "aaa", "bbb");
+        assert_eq!(path.relative_path(), Path::new(path.relative_path));
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn relative_path() {
+        use std::path::Path;
+
+        let path = EmbeddedPath::new("a/b/c/d.txt", "aaa", "bbb");
+        assert_eq!(path.relative_path(), Path::new(path.relative_path));
+    }
+
+    #[test]
+    fn getters() {
+        let path = EmbeddedPath::new("a/b/c/d.txt", "aaa", "bbb");
+        assert_eq!(path.relative_path_str(), "a/b/c/d.txt");
+        assert_eq!(path.name(), "aaa");
+        assert_eq!(path.stem(), "bbb");
+    }
+}

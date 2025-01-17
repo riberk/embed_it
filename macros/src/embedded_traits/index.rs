@@ -2,7 +2,7 @@ use quote::quote;
 use syn::parse_quote;
 
 use crate::{
-    embed::{BoolLikeEnum, EntryTokens, GenerateContext, IndexTokens},
+    embed::{bool_like_enum::BoolLikeEnum, EntryTokens, GenerateContext, IndexTokens},
     fs::EntryKind,
 };
 
