@@ -66,7 +66,7 @@ impl Entry {
         let path = EntryPath {
             origin: path
                 .to_str()
-                .ok_or_else(|| CreateRootEntryError::NotUtf8)?
+                .ok_or(CreateRootEntryError::NotUtf8)?
                 .to_owned(),
             relative: String::new(),
             ident: String::new(),
@@ -303,9 +303,7 @@ pub fn get_env(variable: &str) -> Result<String, VarError> {
 mod tests {
     use std::{
         env::VarError,
-        ffi::OsString,
         fs::{create_dir_all, remove_dir_all},
-        os::unix::ffi::OsStringExt,
         path::{Path, PathBuf},
     };
 
@@ -452,7 +450,7 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn normalize_path_not_utf8() {
-        use std::{ffi::OsString, os::unix::ffi::OsStringExt, path::PathBuf};
+        use std::{ffi::OsString, os::unix::ffi::OsStringExt};
 
         let origin = PathBuf::from(OsString::from_vec(vec![255]));
         assert_eq!(
@@ -533,7 +531,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn expand_and_canonicalize_not_utf() {
+        use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+
         let expected_err = VarError::NotUnicode(OsString::from_vec(vec![1]));
 
         let err = expand_and_canonicalize("./$Q", |_| Err(expected_err.clone())).unwrap_err();
