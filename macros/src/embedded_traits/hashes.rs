@@ -79,12 +79,9 @@ impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
                     if let Some(entry_hash) = entry_hash {
                         hasher.hash(entry_hash);
                     }
-
-                    println!("{}: {name}{entry_hash:02x?}", self.0.id());
                 }
 
                 let res = hasher.finalize();
-                println!("{} result: {res:02x?}", self.0.id());
                 res
             }
             crate::fs::Entry::File(info) => {

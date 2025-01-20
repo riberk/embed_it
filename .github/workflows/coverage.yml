@@ -12,11 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly
       - uses: taiki-e/install-action@cargo-llvm-cov
       - uses: taiki-e/install-action@nextest
-      - run: cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info --ignore-filename-regex=".+/macros/src/test_helpers.rs"
-      - uses: codecov/codecov-action@v3
+      - run: rustup component add llvm-tools-preview --toolchain nightly-x86_64-unknown-linux-gnu
+      - run: cargo +nightly llvm-cov clean --workspace
+      - run: cargo +nightly llvm-cov nextest --all-features --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --no-report
+      - run: cargo +nightly llvm-cov --all-features --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+      - run: cargo llvm-cov report --lcov
+      - run: echo "COVERAGE=$(cargo llvm-cov report --summary-only --json | jq '.data[0].totals.lines.percent | . * 100 | round / 100')" >> $GITHUB_ENV
+      - run: mkdir badges
+      - run: ./scripts/download_coverage_shield.sh ${COVERAGE} > badges/coverage.svg
+      - uses: peaceiris/actions-gh-pages@v3
         with:
-          files: lcov.info
-          fail_ci_if_error: true
+          deploy_key: ${{ secrets.COVERAGE_DEPLOY_KEY }}
+          publish_dir: ./badges
+

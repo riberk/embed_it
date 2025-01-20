@@ -1,4 +1,7 @@
 # embed_it
+[![Build Status](https://github.com/riberk/embed_it/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/riberk/embed_it/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/embed_it.svg)](https://crates.io/crates/embed_it)
+
 Include any directory as a struct and the entire tree will be produced into rust structures and traits
 
 Imagine a project structure like that
@@ -56,19 +59,19 @@ pub struct Assets;
 
 ### <a name="DirAttr"></a> DirAttr
 
-| field                      | type            | multiple | required | default                                     | description                                                                                                                                       |
-|----------------------------|-----------------|----------|----------|---------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                      | What trait name will be used for a directory                                                                                                      |
-| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                      | What trait name will be used for a directory field factory                                                                                        |
-| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug` | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) |
+| field                      | type            | multiple | required | default                                                                    | description                                                                                                                                                                      |
+|----------------------------|-----------------|----------|----------|----------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                                                     | What trait name will be used for a directory                                                                                                                                     |
+| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                                                     | What trait name will be used for a directory field factory                                                                                                                       |
+| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug`                                | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
 
 ### <a name="FileAttr"></a> FileAttr
 
-| field                      | type            | multiple | required | default                                     | description                                                                                                                                      |
-|----------------------------|-----------------|----------|----------|---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                      | What trait name will be used for a directory                                                                                                     |
-| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                      | What trait name will be used for a directory field factory                                                                                       |
-| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Meta`, `Debug`, `Content`          | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list)|
+| field                      | type            | multiple | required | default                                                           | description                                                                                                                                                                      |
+|----------------------------|-----------------|----------|----------|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                                            | What trait name will be used for a directory                                                                                                                                     |
+| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                                            | What trait name will be used for a directory field factory                                                                                                                       |
+| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Meta`, `Debug`, `Content`                                | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
 
 ### <a name="EmbeddedTraits_list"></a> EmbeddedTraits list
 
@@ -76,7 +79,7 @@ pub struct Assets;
 |-------------|-------------------------|-----------------|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Path**    | [`crate::EntryPath`]    | any             |                                                                     | Provides full information about a path of an entry                                                                                                                |
 | **Entries** | *\<auto generated\>*    | dir             | `fn entries(&self) -> &'static [Entry]`                             | Provides direct children of a dir                                                                                                                                 |
-| **Index**   | *\<auto generated\>*    | dir             | `fn get(&self, path: &str) -> Option<&'static Entry>` | Provides fast access (`HashMap`) to all children (recursively). It constructs hash set on every level dir and might use some memory if there are a lot of entries |
+| **Index**   | *\<auto generated\>*    | dir             | `fn get(&self, path: &str) -> Option<&'static Entry>`               | Provides fast access (`HashMap`) to all children (recursively). It constructs hash set on every level dir and might use some memory if there are a lot of entries |
 | **Meta**    | [`crate::Meta`]         | any             |                                                                     | Provides metadata of an entry                                                                                                                                     |
 | **Debug**   | [`std::fmt::Debug`]     | any             |                                                                     | Debugs structs                                                                                                                                                    |
 | **Content** | [`crate::Content`]      | file            |                                                                     | Provides content of a file                                                                                                                                        |
@@ -94,11 +97,100 @@ pub struct Assets;
 |----------------------------|-----------------|----------|----------|---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | `name`                     | `Ident`         | false    | true     |                                             | The name of the metod, that will be used by the trait                                                                                            |
 | `factory`                  | `syn::Path`     | false    | true     |                                             | The path to a factory, that will be used to create an instance of the field and to determine a field type                                        |
-| `trait_name`               | `Option<Ident>` | false    | false    | "{name.to_pascal_case()}Field"              | The name of the field trait                                                                                                                      |
+| `trait_name`               | `Option<Ident>` | false    | false    | `{name.to_pascal_case()}Field`              | The name of the field trait                                                                                                                      |
 | `target`                   | `EntryKind`     | false    | false    | `file`                                      | Either `file` or `dir`                                                                                                                           |
 | `regex`                    | `Option<String>`| false    | false    | `None`                                      | Regular expression to match a fs entry path. The trait will be implemented for a struct only if the regex matches                                |
 | `pattern`                  | `Option<String>`| false    | false    | `None`                                      | Glob pattern to match a fs entry path. The trait will be implemented for a struct only if the pattern matches                                    |
 
+### <a name="HashTraits"></a> Hash traits
+
+You can use any combination of hash traits on `dir` and `file`. For a file it hashes it's content, for a dir it hashes every entry name and entry hash if applicable (order - dirs, then files, by path). Hash stores as a constant array of bytes;
+
+| Derive     | Required feature | Trait                     | 
+|------------|------------------|---------------------------| 
+| `Md5`      | `md5`            | [`crate::Md5Hash`]        | 
+| `Sha1`     | `sha1`           | [`crate::Sha1Hash`]       | 
+| `Sha2_224` | `sha2`           | [`crate::Sha2_224Hash`]   | 
+| `Sha2_256` | `sha2`           | [`crate::Sha2_256Hash`]   | 
+| `Sha2_384` | `sha2`           | [`crate::Sha2_384Hash`]   | 
+| `Sha2_512` | `sha2`           | [`crate::Sha2_512Hash`]   | 
+| `Sha3_224` | `sha3`           | [`crate::Sha3_224Hash`]   | 
+| `Sha3_256` | `sha3`           | [`crate::Sha3_256Hash`]   | 
+| `Sha3_384` | `sha3`           | [`crate::Sha3_384Hash`]   | 
+| `Sha3_512` | `sha3`           | [`crate::Sha3_512Hash`]   | 
+| `Blake3`   | `blake3`         | [`crate::Blake3_256Hash`] | 
+
+The example below compiles only if all hash features from table above enabled;
+
+```rust
+
+use std::str::from_utf8;
+use embed_it::Embed;
+
+#[derive(Embed)]
+#[embed(
+    path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
+    dir(
+        derive(Md5),
+        derive(Sha1),
+        derive(Sha2_224),
+        derive(Sha2_256),
+        derive(Sha2_384),
+        derive(Sha2_512),
+        derive(Sha3_224),
+        derive(Sha3_256),
+        derive(Sha3_384),
+        derive(Sha3_512),
+        derive(Blake3),
+    ),
+    file(
+        derive(Md5),
+        derive(Sha1),
+        derive(Sha2_224),
+        derive(Sha2_256),
+        derive(Sha2_384),
+        derive(Sha2_512),
+        derive(Sha3_224),
+        derive(Sha3_256),
+        derive(Sha3_384),
+        derive(Sha3_512),
+        derive(Blake3),
+    ),
+)]
+pub struct Assets;
+
+# fn main() {
+use embed_it::{ 
+    Md5Hash, 
+    Sha1Hash, 
+    Sha2_224Hash, 
+    Sha2_256Hash, 
+    Sha2_384Hash, 
+    Sha2_512Hash, 
+    Sha3_224Hash,
+    Sha3_256Hash,
+    Sha3_384Hash,
+    Sha3_512Hash,
+    Blake3_256Hash, 
+};
+
+use hex_literal::hex;
+
+assert_eq!(Assets.md5(), &hex!("56e71a41c76b1544c52477adf4c8e2f7"));
+assert_eq!(Assets.sha1(), &hex!("26da80338f55108be5bcce49285a4154f6705599"));
+assert_eq!(Assets.sha2_224(), &hex!("360c16e2d8135a337cc6ddf4134ec9cc69dd65b779db2a2807f941e4"));
+assert_eq!(Assets.sha2_256(), &hex!("e16b758a01129c86f871818a7b4e31c88a3c6b69d9c8319bcbc881b58f067b25"));
+assert_eq!(Assets.sha2_384(), &hex!("de4656a27347eee72aea1d15e85f20439673709cde5339772660bbd9d800bbde9f637eb3505f572140432625f3948175"));
+assert_eq!(Assets.sha2_512(), &hex!("bc1673b560316c6586fa1ec98ca5df3e303b66ddae944b05c71314806f88bd4b8f4c7832dfb7dd729eaca191b7142936d21bd07f750c9bc35d67f218e51bbaa4"));
+assert_eq!(Assets.sha3_224(), &hex!("6949265b40fa55e0c194e3591f90e6cbf0ac100d7ed32e71d6e1e753"));
+assert_eq!(Assets.sha3_256(), &hex!("a2d99103dc2d1967fb05c4de99a1432e9afb1f5acc698fefb2112ce7fb9335c4"));
+assert_eq!(Assets.sha3_384(), &hex!("cf1f50cb53dc61b3519227887bfb20230b6878d32b10c5a9bfe016095aaecc593e612a165c89488109da62138a7214d8"));
+assert_eq!(Assets.sha3_512(), &hex!("aeff4601a53fecdad418f3245676398719d507bd7b971098ad3f4c2d495c2cc96faf022f481c0bebc0632492abd8eb9fe9f8af6d25664f33d61ff316d269682a"));
+assert_eq!(Assets.blake3_256(), &hex!("b5947e2140b0fe744b1afe9a9f9031e72571c85db079413a67b4a9309f581de7"));
+
+# }
+
+```
 
 ## Additional fields
 

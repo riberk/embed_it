@@ -32,7 +32,9 @@ jobs:
       - run: cargo nextest run --verbose --all-features
         env:
           RUST_BACKTRACE: 1
-
+      - run: cargo test --verbose --all-features --doc
+        env:
+          RUST_BACKTRACE: 1
   fmt:
     if: github.event_name == 'push' || (github.event_name == 'pull_request_review' && github.event.review.state == 'approved')
     name: Latest Dependencies
@@ -54,5 +56,8 @@ jobs:
       - uses: taiki-e/install-action@nextest
       - run: cargo build --verbose --all-features
       - run: cargo nextest run --verbose --all-features
+        env:
+          RUST_BACKTRACE: 1
+      - run: cargo test --verbose --all-features --doc
         env:
           RUST_BACKTRACE: 1

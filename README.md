@@ -59,19 +59,19 @@ pub struct Assets;
 
 ### <a name="DirAttr"></a> DirAttr
 
-| field                      | type            | multiple | required | default                                                                    | description                                                                                                                                       |
-|----------------------------|-----------------|----------|----------|----------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                                                     | What trait name will be used for a directory                                                                                                      |
-| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                                                     | What trait name will be used for a directory field factory                                                                                        |
-| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug` and [Hash traits](#HashTraits) | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) |
+| field                      | type            | multiple | required | default                                                                    | description                                                                                                                                                                      |
+|----------------------------|-----------------|----------|----------|----------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                                                     | What trait name will be used for a directory                                                                                                                                     |
+| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                                                     | What trait name will be used for a directory field factory                                                                                                                       |
+| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug`                                | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
 
 ### <a name="FileAttr"></a> FileAttr
 
-| field                      | type            | multiple | required | default                                                           | description                                                                                                                                      |
-|----------------------------|-----------------|----------|----------|-------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                                            | What trait name will be used for a directory                                                                                                     |
-| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                                            | What trait name will be used for a directory field factory                                                                                       |
-| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Meta`, `Debug`, `Content` and [Hash traits](#HashTraits) | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list)|
+| field                      | type            | multiple | required | default                                                           | description                                                                                                                                                                      |
+|----------------------------|-----------------|----------|----------|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                                            | What trait name will be used for a directory                                                                                                                                     |
+| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                                            | What trait name will be used for a directory field factory                                                                                                                       |
+| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Meta`, `Debug`, `Content`                                | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
 
 ### <a name="EmbeddedTraits_list"></a> EmbeddedTraits list
 
@@ -132,7 +132,7 @@ use embed_it::Embed;
     path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
     dir(
         derive(Md5),
-        derive(Sha1)
+        derive(Sha1),
         derive(Sha2_224),
         derive(Sha2_256),
         derive(Sha2_384),
@@ -145,7 +145,7 @@ use embed_it::Embed;
     ),
     file(
         derive(Md5),
-        derive(Sha1)
+        derive(Sha1),
         derive(Sha2_224),
         derive(Sha2_256),
         derive(Sha2_384),
@@ -171,7 +171,7 @@ use embed_it::{
     Sha3_256Hash,
     Sha3_384Hash,
     Sha3_512Hash,
-    BlakeHash 
+    Blake3_256Hash, 
 };
 
 use hex_literal::hex;
