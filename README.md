@@ -1,6 +1,7 @@
 # embed_it
 [![Build Status](https://github.com/riberk/embed_it/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/riberk/embed_it/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/embed_it.svg)](https://crates.io/crates/embed_it)
+[![Coverage](https://riberk.github.io/embed_it/badges/coverage.svg)](https://riberk.github.io/embed_it/coverage_report/index.html)
 
 Include any directory as a struct and the entire tree will be produced into rust structures and traits
 
