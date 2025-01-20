@@ -81,8 +81,7 @@ impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
                     }
                 }
 
-                let res = hasher.finalize();
-                res
+                hasher.finalize()
             }
             crate::fs::Entry::File(info) => {
                 let file_path = info.path().origin_path();
