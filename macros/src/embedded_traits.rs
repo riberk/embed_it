@@ -10,17 +10,18 @@ use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
     error::Error,
-    fmt::Debug,
+    fmt::{Debug, Display},
     sync::LazyLock,
 };
 
 use hashes::ids;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{parse_quote, punctuated::Punctuated, Ident, Token, TraitBound, TypeParamBound};
 
 use crate::{
     embed::{
-        attributes::derive_default_traits::DeriveDefaultTraits, bool_like_enum::BoolLikeEnum,
+        attributes::{derive_default_traits::DeriveDefaultTraits, field::FieldTraits},
+        bool_like_enum::BoolLikeEnum,
         EntryTokens, GenerateContext, IndexTokens,
     },
     fs::EntryKind,
@@ -100,17 +101,17 @@ pub enum ResolveEmbeddedTraitError {
     FeatureDisabled(FeatureDisabled),
 }
 
-impl From<FeatureDisabled> for ResolveEmbeddedTraitError {
-    fn from(value: FeatureDisabled) -> Self {
-        Self::FeatureDisabled(value)
+impl Display for ResolveEmbeddedTraitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResolveEmbeddedTraitError::FeatureDisabled(e) => write!(f, "{e}"),
+        }
     }
 }
 
-impl ResolveEmbeddedTraitError {
-    pub fn into_syn<T: ToTokens>(self, tokens: T) -> syn::Error {
-        match self {
-            ResolveEmbeddedTraitError::FeatureDisabled(v) => v.into_syn(tokens),
-        }
+impl From<FeatureDisabled> for ResolveEmbeddedTraitError {
+    fn from(value: FeatureDisabled) -> Self {
+        Self::FeatureDisabled(value)
     }
 }
 
@@ -120,12 +121,12 @@ pub struct FeatureDisabled {
     feature: &'static str,
 }
 
-impl FeatureDisabled {
-    pub fn into_syn<T: ToTokens>(self, tokens: T) -> syn::Error {
+impl Display for FeatureDisabled {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self { requested, feature } = self;
-        syn::Error::new_spanned(
-            tokens,
-            format!("Feature '{feature}' must be enabled to use '{requested}'"),
+        write!(
+            f,
+            "Feature '{feature}' must be enabled to use '{requested}'"
         )
     }
 }
@@ -199,6 +200,8 @@ pub trait TraitAttr {
 
     /// Which traits must be implemented for any of implementors of that trait
     fn embedded_traits(&self) -> impl Iterator<Item = &'static dyn EmbeddedTrait>;
+
+    fn fields(&self) -> &FieldTraits;
 
     fn struct_impl(
         &self,

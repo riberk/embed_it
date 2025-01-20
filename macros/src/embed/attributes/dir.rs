@@ -1,5 +1,6 @@
+use std::fmt::Display;
+
 use darling::FromMeta;
-use proc_macro2::Span;
 use quote::quote;
 use syn::Ident;
 
@@ -7,12 +8,16 @@ use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
         debug::DebugTrait, entries::EntriesTrait, hashes::ids::*, index::IndexTrait,
-        meta::MetaTrait, path::PathTrait, EmbeddedTrait, EnabledTraits, ResolveEmbeddedTraitError,
-        TraitAttr, EMBEDED_TRAITS,
+        meta::MetaTrait, path::PathTrait, EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr,
+        EMBEDED_TRAITS,
     },
+    main_trait_data::{MainTrait, MainTraitData},
 };
 
-use super::derive_default_traits::DeriveDefaultTraits;
+use super::{
+    derive_default_traits::DeriveDefaultTraits,
+    field::{CreateFieldTraitsError, FieldAttr, FieldTraits},
+};
 
 #[derive(Debug, FromMeta, Default)]
 pub struct DirAttr {
@@ -27,6 +32,9 @@ pub struct DirAttr {
 
     #[darling(default)]
     field_factory_trait_name: Option<Ident>,
+
+    #[darling(default, multiple, rename = "field")]
+    fields: Vec<FieldAttr>,
 }
 
 #[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
@@ -117,35 +125,83 @@ pub struct DirTrait {
     embedded_traits: Vec<&'static dyn EmbeddedTrait>,
     trait_name: Ident,
     field_factory_trait_name: Ident,
+    fields: FieldTraits,
 }
 
-const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] = &[
-    &DebugTrait,
-    &EntriesTrait,
-    &IndexTrait,
-    &MetaTrait,
-    &PathTrait,
-];
+impl MainTrait for DirTrait {
+    type Trait = DirEmbeddedTrait;
+    type Error = ParseDirAttrError;
+
+    const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] = &[
+        &DebugTrait,
+        &EntriesTrait,
+        &IndexTrait,
+        &MetaTrait,
+        &PathTrait,
+    ];
+
+    const DEFAULT_TRAIT_NAME: &str = "Dir";
+    const DEFAULT_FIELD_FACTORY_TRAIT_NAME: &str = "DirFieldFactory";
+}
+
+impl From<MainTraitData> for DirTrait {
+    fn from(value: MainTraitData) -> Self {
+        let MainTraitData {
+            embedded_traits,
+            trait_name,
+            field_factory_trait_name,
+            fields,
+        } = value;
+        Self {
+            embedded_traits,
+            trait_name,
+            field_factory_trait_name,
+            fields,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ParseDirAttrError {
+    ResolveEmbeddedTrait(ResolveEmbeddedTraitError),
+    CreateFieldTraits(CreateFieldTraitsError),
+}
+
+impl Display for ParseDirAttrError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseDirAttrError::ResolveEmbeddedTrait(e) => {
+                write!(f, "Unable to resolve embedded trait: {e}")
+            }
+            ParseDirAttrError::CreateFieldTraits(e) => {
+                write!(f, "Unable to create field traits: {e}")
+            }
+        }
+    }
+}
+
+impl From<ResolveEmbeddedTraitError> for ParseDirAttrError {
+    fn from(value: ResolveEmbeddedTraitError) -> Self {
+        Self::ResolveEmbeddedTrait(value)
+    }
+}
+
+impl From<CreateFieldTraitsError> for ParseDirAttrError {
+    fn from(value: CreateFieldTraitsError) -> Self {
+        Self::CreateFieldTraits(value)
+    }
+}
 
 impl TryFrom<DirAttr> for DirTrait {
-    type Error = ResolveEmbeddedTraitError;
+    type Error = <Self as MainTrait>::Error;
     fn try_from(value: DirAttr) -> Result<Self, Self::Error> {
-        let enabled_traits = EnabledTraits::create(
+        Self::create(
             value.derive_default_traits,
             value.embedded_traits,
-            DEFAULT_TRAITS,
-        )?;
-
-        let res = Self {
-            embedded_traits: enabled_traits.into(),
-            trait_name: value
-                .trait_name
-                .unwrap_or_else(|| Ident::new("Dir", Span::call_site())),
-            field_factory_trait_name: value
-                .field_factory_trait_name
-                .unwrap_or_else(|| Ident::new("DirFieldFactory", Span::call_site())),
-        };
-        Ok(res)
+            value.trait_name,
+            value.field_factory_trait_name,
+            value.fields,
+        )
     }
 }
 
@@ -160,6 +216,10 @@ impl TraitAttr for DirTrait {
 
     fn embedded_traits(&self) -> impl Iterator<Item = &'static dyn EmbeddedTrait> {
         self.embedded_traits.iter().copied()
+    }
+
+    fn fields(&self) -> &FieldTraits {
+        &self.fields
     }
 
     fn struct_impl(

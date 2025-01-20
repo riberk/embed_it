@@ -16,11 +16,11 @@ get_color() (
         echo "e05d44"
     elif (( $(echo "$input < 60" | bc -l) )); then
         echo "fe7d37"
-    elif (( $(echo "$input < 75" | bc -l) )); then
+    elif (( $(echo "$input < 65" | bc -l) )); then
         echo "dfb317"
-    elif (( $(echo "$input < 90" | bc -l) )); then
+    elif (( $(echo "$input < 75" | bc -l) )); then
         echo "a4a61d"
-    elif (( $(echo "$input < 95" | bc -l) )); then
+    elif (( $(echo "$input < 85" | bc -l) )); then
         echo "97ca00"
     else
         echo "40c010"

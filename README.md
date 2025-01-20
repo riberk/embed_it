@@ -22,7 +22,10 @@ You can use a macro to expand it into rust code:
 ```rust
 use embed_it::Embed;
 #[derive(Embed)]
-#[embed(path = "$CARGO_MANIFEST_DIR/../example_dirs/assets")]
+#[embed(
+    path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
+    support_alt_separator,
+)]
 pub struct Assets;
 
 # fn main() {
@@ -43,6 +46,18 @@ pub struct Assets;
 
     assert_eq!(Assets.one_txt().world().content(), b"world");
     assert_eq!(Assets.one_txt().world().path(), &EmbeddedPath::new("one_txt/world", "world", "world"));
+
+    // or with dynamic dispatch
+    assert_eq!(
+        Assets.get("one_txt/hello").unwrap().file().unwrap().content(),
+        b"hello"
+    );
+
+    // we can use win-style paths due to `support_alt_separator` attribute
+    assert_eq!(
+        Assets.get("one_txt\\hello").unwrap().file().unwrap().content(),
+        b"hello"
+    );
 # }
 ```
 
@@ -58,39 +73,40 @@ The main attribute
 | `dir`                    | `DirAttr`        | false    | false    | `DirAttr::default()`   | Change settings, how `Dir`-trait and its implementations will be generated. See more in [Dir Attr](#DirAttr) section                                                                                                                                                                        |
 | `file`                   | `FileAttr`       | false    | false    | `FileAttr::default()`  | Change settings, how  `File` -trait and its implementations will be generated. See more in [File Attr](#FileAttr) section                                                                                                                                                                   |
 | `entry`                  | `EntryAttr`      | false    | false    | `EntryAttr::default()` | Change settings, how  `Entry` -struct and its implementations will be generated. See more in [Entry Attr](#EntryAttr) section                                                                                                                                                               |
-| `field`                  | `Vec<FieldAttr>` | true     | false    | `vec![]`               | Add additional "fields" for dirs and files. See more in [Field Attr](#FieldAttr)                                                                                                                                                                                                            |
 | `with_extension`         | `bool`           | false    | false    | `false`                | Use file extensions for method and struct name                                                                                                                                                                                                                                              |
 | `support_alt_separator`  | `bool`           | false    | false    | `false`                | If true, getting value from directory's `Index` replaces `\` with `/`. In the other words you can use windows-style paths with get-method like `Assets.get("a\\b\\c.txt")`                                                                                                                  |
 
 ### <a name="DirAttr"></a> DirAttr
 
-| field                      | type            | multiple | required | default                                                                    | description                                                                                                                                                                      |
-|----------------------------|-----------------|----------|----------|----------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `derive_default_traits`    | `bool`          | false    | false    | `true`                                                                     | Will default traits be derived (see `derive` row in the table)                                                                                                                   |
-| `trait_name`               | `Ident`         | false    | false    | `Dir`                                                                      | What trait name will be used for a directory                                                                                                                                     |
-| `field_factory_trait_name` | `Ident`         | false    | false    | `DirFieldFactory`                                                          | What trait name will be used for a directory field factory                                                                                                                       |
-| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug`                                | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
+| field                      | type             | multiple | required | default                                      | description                                                                                                                                                                      |
+|----------------------------|------------------|----------|----------|----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `derive_default_traits`    | `bool`           | false    | false    | `true`                                       | Will default traits be derived (see `derive` row in the table)                                                                                                                   |
+| `trait_name`               | `Ident`          | false    | false    | `Dir`                                        | What trait name will be used for a directory                                                                                                                                     |
+| `field_factory_trait_name` | `Ident`          | false    | false    | `DirFieldFactory`                            | What trait name will be used for a directory field factory                                                                                                                       |
+| `derive`                   | `Vec<DirTrait>`  | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug`  | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
+| `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                                     | Add additional "fields" for dir. See more in [Field Attr](#FieldAttr)                                                                                                            |
 
 ### <a name="FileAttr"></a> FileAttr
 
-| field                      | type            | multiple | required | default                                                           | description                                                                                                                                                                      |
-|----------------------------|-----------------|----------|----------|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `derive_default_traits`    | `bool`          | false    | false    | `true`                                                            | Will default traits be derived (see `derive` row in the table)                                                                                                                   |
-| `trait_name`               | `Ident`         | false    | false    | `File`                                                            | What trait name will be used for a directory                                                                                                                                     |
-| `field_factory_trait_name` | `Ident`         | false    | false    | `FileFieldFactory`                                                | What trait name will be used for a directory field factory                                                                                                                       |
-| `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Meta`, `Debug`, `Content`                                | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
+| field                      | type             | multiple | required | default                            | description                                                                                                                                                                      |
+|----------------------------|------------------|----------|----------|------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `derive_default_traits`    | `bool`           | false    | false    | `true`                             | Will default traits be derived (see `derive` row in the table)                                                                                                                   |
+| `trait_name`               | `Ident`          | false    | false    | `File`                             | What trait name will be used for a directory                                                                                                                                     |
+| `field_factory_trait_name` | `Ident`          | false    | false    | `FileFieldFactory`                 | What trait name will be used for a directory field factory                                                                                                                       |
+| `derive`                   | `Vec<DirTrait>`  | true     | false    | `Path`, `Meta`, `Debug`, `Content` | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
+| `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                           | Add additional "fields" for dir. See more in [Field Attr](#FieldAttr)                                                                                                            |
 
 ### <a name="EmbeddedTraits_list"></a> EmbeddedTraits list
 
-| **name**    | **trait**               | **dir or file** | **method**                                                          | **purpose**                                                                                                                                                       |
-|-------------|-------------------------|-----------------|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Path**    | [`crate::EntryPath`]    | any             |                                                                     | Provides full information about a path of an entry                                                                                                                |
-| **Entries** | *\<auto generated\>*    | dir             | `fn entries(&self) -> &'static [Entry]`                             | Provides direct children of a dir                                                                                                                                 |
-| **Index**   | *\<auto generated\>*    | dir             | `fn get(&self, path: &str) -> Option<&'static Entry>`               | Provides fast access (`HashMap`) to all children (recursively). It constructs hash set on every level dir and might use some memory if there are a lot of entries |
-| **Meta**    | [`crate::Meta`]         | any             |                                                                     | Provides metadata of an entry                                                                                                                                     |
-| **Debug**   | [`std::fmt::Debug`]     | any             |                                                                     | Debugs structs                                                                                                                                                    |
-| **Content** | [`crate::Content`]      | file            |                                                                     | Provides content of a file                                                                                                                                        |
-| **Hashes**  | *\<various\>*           | any             |                                                                     | Provides hash of a file content or a directory structure with files' hashes                                                                                       |
+| **name**    | **trait**               | **dir or file** | **method**                                            | **purpose**                                                                                                                                                       |
+|-------------|-------------------------|-----------------|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Path**    | [`crate::EntryPath`]    | any             |                                                       | Provides full information about a path of an entry                                                                                                                |
+| **Entries** | *\<auto generated\>*    | dir             | `fn entries(&self) -> &'static [Entry]`               | Provides direct children of a dir                                                                                                                                 |
+| **Index**   | *\<auto generated\>*    | dir             | `fn get(&self, path: &str) -> Option<&'static Entry>` | Provides fast access (`HashMap`) to all children (recursively). It constructs hash set on every level dir and might use some memory if there are a lot of entries |
+| **Meta**    | [`crate::Meta`]         | any             |                                                       | Provides metadata of an entry                                                                                                                                     |
+| **Debug**   | [`std::fmt::Debug`]     | any             |                                                       | Debugs structs                                                                                                                                                    |
+| **Content** | [`crate::Content`]      | file            |                                                       | Provides content of a file                                                                                                                                        |
+| **Hashes**  | *\<various\>*           | any             |                                                       | Provides hash of a file content or a directory structure with files' hashes                                                                                       |
 
 
 
@@ -101,14 +117,106 @@ The main attribute
 
 ### <a name="FieldAttr"></a> FieldAttr
 
+You can add any additional fields, which will be created in runtime (but only once) from a dir or a file. 
+For each `field` defined in macros a special trait will be generated inside the module containing a root structure.
+
 | field                      | type            | multiple | required | default                                     | description                                                                                                                                      |
 |----------------------------|-----------------|----------|----------|---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | `name`                     | `Ident`         | false    | true     |                                             | The name of the metod, that will be used by the trait                                                                                            |
 | `factory`                  | `syn::Path`     | false    | true     |                                             | The path to a factory, that will be used to create an instance of the field and to determine a field type                                        |
 | `trait_name`               | `Option<Ident>` | false    | false    | `{name.to_pascal_case()}Field`              | The name of the field trait                                                                                                                      |
-| `target`                   | `EntryKind`     | false    | false    | `file`                                      | Either `file` or `dir`                                                                                                                           |
 | `regex`                    | `Option<String>`| false    | false    | `None`                                      | Regular expression to match a fs entry path. The trait will be implemented for a struct only if the regex matches                                |
 | `pattern`                  | `Option<String>`| false    | false    | `None`                                      | Glob pattern to match a fs entry path. The trait will be implemented for a struct only if the pattern matches                                    |
+
+```rust
+use std::str::from_utf8;
+use embed_it::Embed;
+
+#[derive(Embed)]
+#[embed(
+    path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
+    file(
+        field(
+            // it is a trait method name used to get an instance of a field.
+            // you can use your own name for the trait with attribute `trait_name`.
+            // By default it is `{name.to_pascal()}Field`.
+            // In that case it will be `AsStrField`.
+            name = "as_str", 
+            
+            // factory is a path to the struct implementing either
+            // a trait self::FileFieldFactory for target = "file"
+            // or a trait self::DirFieldFactory for target = "dir"
+            factory = AsStr,   
+            
+            // glob pattern
+            pattern = "*.txt",
+        ), 
+    ),
+    dir(
+        field(
+            name = "children", 
+            factory = crate::Children, 
+            regex = ".+_txt",
+        ), 
+        field(
+            name = "root_children", 
+            trait_name = "Root",
+            factory = crate::Children, 
+            // this trait will be implemented only for root struct (`Assets`)
+            regex = ""
+        ), 
+    ),
+
+)]
+pub struct Assets;
+
+
+pub struct AsStr(&'static str);
+impl FileFieldFactory for AsStr {
+    type Field = Option<Self>;
+
+    fn create<T: File + ?Sized>(data: &T) -> Self::Field {
+        use embed_it::{ Content };
+        from_utf8(data.content()).map(AsStr).ok()
+    }
+}
+
+pub struct Children;
+impl DirFieldFactory for Children {
+    type Field = Vec<&'static str>;
+
+    fn create<T: Dir + ?Sized>(data: &T) -> Self::Field {
+        use embed_it::{ EntryPath };
+        data.entries().iter().map(|e| e.path().name()).collect()
+    }
+}
+
+# fn main() {
+use embed_it::{ Content };
+
+// the first field `as_str`
+use AsStrField;
+assert_eq!(Assets.hello().content(), b"hello");
+assert_eq!(Assets.one().content(), b"one");
+assert_eq!(Assets.world().content(), b"world");
+
+assert_eq!(Assets.hello().as_str().as_ref().unwrap().0, "hello");
+assert_eq!(Assets.one().as_str().as_ref().unwrap().0, "one");
+assert_eq!(Assets.world().as_str().as_ref().unwrap().0, "world");
+
+// this is not compile due to `pattern` (`one_txt/hello` has no extension)
+// Assets.one_txt().as_str()
+
+// the second field `children`
+use ChildrenField;
+assert_eq!(Assets.one_txt().children(), &vec!["hello", "world"]);
+
+// the third field `root_children`
+use Root;
+assert_eq!(Assets.root_children(), &vec!["one_txt", "hello.txt", "one.txt", "world.txt"]);
+# }
+
+```
 
 ### <a name="HashTraits"></a> Hash traits
 
@@ -211,104 +319,6 @@ mod lib {
 
 ```
 
-## Additional fields
-
-You can add any additional fields, which will be created in runtime (but only once) from a dir or a file. 
-For each `field` defined in macros a special trait will be generated inside the module containing a root struct.
-
-```rust
-use std::str::from_utf8;
-use embed_it::Embed;
-
-#[derive(Embed)]
-#[embed(
-    path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
-    field(
-        // it is a trait method name used to get an instance of a field.
-        // you can use your own name for the trait with attribute `trait_name`.
-        // By default it is `{name.to_pascal()}Field`.
-        // In that case it will be `AsStrField`.
-        name = "as_str", 
-        
-        // target is a `file` or a `dir`, `file` is by default and might be ommitted
-        // for a `file` only files structures will implement the trait and for a dir vice versa
-        target = "file",
-        
-        // factory is a path to the struct implementing either
-        // a trait self::FileFieldFactory for target = "file"
-        // or a trait self::DirFieldFactory for target = "dir"
-        factory = AsStr,   
-        
-        // glob pattern
-        pattern = "*.txt",
-    ), 
-    field(
-        name = "children", 
-        factory = crate::Children, 
-        target = "dir", 
-        regex = ".+_txt",
-    ), 
-    field(
-        name = "root_children", 
-        trait_name = "Root",
-        factory = crate::Children, 
-        target = "dir", 
-        // this trait will be implemented only for root struct (`Assets`)
-        regex = ""
-    ), 
-)]
-pub struct Assets;
-
-
-/// Our own field structure to interpret content as utf8 str
-pub struct AsStr(&'static str);
-impl FileFieldFactory for AsStr {
-    type Field = Option<Self>;
-
-    fn create<T: File + ?Sized>(data: &T) -> Self::Field {
-        use embed_it::{ Content };
-        from_utf8(data.content()).map(AsStr).ok()
-    }
-}
-
-/// Our own field structure to store all children relative paths
-pub struct Children(Vec<&'static str>);
-impl DirFieldFactory for Children {
-    type Field = Self;
-
-    fn create<T: Dir + ?Sized>(data: &T) -> Self::Field {
-        use embed_it::{ EntryPath };
-        Children(data.entries().iter().map(|e| e.path().name()).collect())
-    }
-}
-
-# fn main() {
-use embed_it::{ Content };
-
-// the first field `as_str`
-use AsStrField;
-assert_eq!(Assets.hello().content(), b"hello");
-assert_eq!(Assets.one().content(), b"one");
-assert_eq!(Assets.world().content(), b"world");
-
-assert_eq!(Assets.hello().as_str().as_ref().unwrap().0, "hello");
-assert_eq!(Assets.one().as_str().as_ref().unwrap().0, "one");
-assert_eq!(Assets.world().as_str().as_ref().unwrap().0, "world");
-
-// this is not compile due to `pattern` (`one_txt/hello` has no extension)
-// Assets.one_txt().as_str()
-
-// the second field `children`
-use ChildrenField;
-assert_eq!(Assets.one_txt().children().0, Vec::from(["hello", "world"]));
-
-// the third field `root_children`
-use Root;
-assert_eq!(Assets.root_children().0, vec!["one_txt", "hello.txt", "one.txt", "world.txt"]);
-# }
-
-```
-
 ## More complex example
 
 ```rust
@@ -323,6 +333,9 @@ use embed_it::Embed;
         // trait name for directory field's factories (default `DirFieldFactory`)
         field_factory_trait_name = AssetsDirFieldFactory, 
         
+        // Do not derive default traits for a dir
+        derive_default_traits = false,
+
         // implement embed_it::EntryPath
         derive(Path), 
         
@@ -337,6 +350,20 @@ use embed_it::Embed;
         
         // implement `std::fmt::Debug` for directory. It writes each child implementing debug
         derive(Debug),
+        field(
+            name = children, 
+            trait_name = AssetsChildrenField, 
+            factory = Children, 
+            pattern = "?*", 
+            regex = ".+", 
+        ),
+        field(
+            name = root_children, 
+            trait_name = AssetsRootChildrenField, 
+            factory = Children, 
+            // only for `Assets`
+            regex = "", 
+        ),
     ),
     file(
         // trait name for files (default `File`)
@@ -344,6 +371,9 @@ use embed_it::Embed;
         
         // trait name for file field's factories (default `FileFieldFactory`)
         field_factory_trait_name = AssetsFileFieldFactory, 
+
+        // Do not derive default traits for a file
+        derive_default_traits = false,
 
         // implement embed_it::EntryPath
         derive(Path), 
@@ -356,6 +386,22 @@ use embed_it::Embed;
         
         // implement `std::fmt::Debug` for a file. It writes Content len
         derive(Debug),
+        field(
+            // The name of the method of the trait
+            name = as_str, 
+            
+            // The trait name, defaul `"{name.to_pascal()}Field"`
+            trait_name = AssetsAsStrField, 
+            
+            // The factory to create an instance of the field
+            factory = AsStr, 
+            
+            // The pattern to match entry's path. Default None
+            pattern = "*.txt", 
+            
+            // The regex to match entry's path. Default None
+            regex = ".+", 
+        ),
     ),
     // `Entry` - enum with `Dir(&'static dyn Dir)/File(&'static dyn File)` variants
     // `Entry` implements intersection of `Dir`'s and `File`'s traits
@@ -367,41 +413,8 @@ use embed_it::Embed;
     // e.g. hello.txt turns into HelloTxt/hello_txt() if with_extension = true, and Hello/hello() if with_extension = false
     // default is false
     with_extension = true,
-    field(
-        // The name of the method of the trait
-        name = as_str, 
-        
-        // The trait name, defaul `"{name.to_pascal()}Field"`
-        trait_name = AssetsAsStrField, 
-        
-        // The factory to create an instance of the field
-        factory = AsStr, 
-        
-        // The pattern to match entry's path. Default None
-        pattern = "*.txt", 
-        
-        // The regex to match entry's path. Default None
-        regex = ".+", 
 
-        // Which entries will be processed with this trait (either `file` or `dir`). Default `file`
-        target = "file"
-    ),
-    field(
-        name = children, 
-        trait_name = AssetsChildrenField, 
-        factory = Children, 
-        pattern = "?*", 
-        regex = ".+", 
-        target = "dir"
-    ),
-    field(
-        name = root_children, 
-        trait_name = AssetsRootChildrenField, 
-        factory = Children, 
-        // only for `Assets`
-        regex = "", 
-        target = "dir"
-    ),
+    
 )]
 pub struct Assets;
 

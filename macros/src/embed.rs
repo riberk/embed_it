@@ -3,11 +3,14 @@ pub mod bool_like_enum;
 pub mod pattern;
 pub mod regex;
 
-use std::{borrow::Cow, collections::HashSet, path::PathBuf};
+use std::{borrow::Cow, collections::HashSet};
 
 use attributes::{
-    dir::DirTrait, embed::EmbedInput, entry::EntryStruct, field::FieldTraits, file::FileTrait,
-    support_alt_separator::SupportAltSeparator, with_extension::WithExtension,
+    dir::DirTrait,
+    embed::{EmbedInput, GenerationSettings},
+    entry::EntryStruct,
+    field::FieldTrait,
+    file::FileTrait,
 };
 use convert_case::{Case, Casing};
 use darling::FromDeriveInput;
@@ -22,7 +25,7 @@ use crate::{
     embedded_traits::{
         EmbeddedTrait, MakeEmbeddedTraitImplementationError, TraitAttr, EMBEDED_TRAITS,
     },
-    fs::{expand_and_canonicalize, get_env, Entry, EntryKind, ReadEntriesError},
+    fs::{Entry, EntryKind, FsInfo, ReadEntriesError},
     utils::{anymap::AnyMap, unique_names::UniqueNames},
 };
 
@@ -30,7 +33,8 @@ pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream,
     let main_struct_ident = &input.ident;
 
     let input = EmbedInput::from_derive_input(&input)?;
-    let settings = GenerationSettings::try_from(input)?;
+    let settings = GenerationSettings::try_from(input)
+        .map_err(|v| syn::Error::new_spanned(main_struct_ident, v))?;
 
     let mut context = GenerateContext::root(&settings)?;
 
@@ -45,7 +49,9 @@ pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream,
     let dir_trait_definition = settings.dir.definition();
     let file_trait_definition = settings.file.definition();
 
-    let field_traits_definition = settings.traits.definitions();
+    let field_traits_definition = settings
+        .field_traits_definition()
+        .map_err(|e| Error::new_spanned(main_struct_ident, e))?;
     let field_traits_implementation = context.field_traits_implementation();
 
     let embedded_traits_definition =
@@ -113,7 +119,7 @@ pub struct EntryTokens {
     pub field_name: String,
     pub field_ident: syn::Ident,
     pub items: AnyMap,
-    pub entry: Entry,
+    pub entry: Entry<FsInfo>,
 }
 
 pub struct IndexTokens {
@@ -175,7 +181,7 @@ pub struct GenerateContext<'a> {
     pub level: usize,
 
     /// An information about the file system entry
-    pub entry: Entry,
+    pub entry: Entry<FsInfo>,
 
     /// The unique names of the module/impl items
     pub names: UniqueNames,
@@ -197,69 +203,16 @@ pub struct GenerateContext<'a> {
 
     pub settings: &'a GenerationSettings,
 
+    pub fields: Vec<&'a FieldTrait>,
+
     pub items: AnyMap,
 }
 
-#[derive(Debug)]
-pub struct GenerationSettings {
-    pub main_struct_ident: syn::Ident,
-
-    /// The absolute fs path for `path` attribute
-    pub root: PathBuf,
-
-    /// User defined field traits
-    pub traits: FieldTraits,
-
-    /// Should we use extensions in idents
-    pub with_extension: WithExtension,
-
-    /// If true, before `get` all `\\` characters
-    /// will be replaced by `/`
-    pub support_alt_separator: SupportAltSeparator,
-
-    /// Information about the `Dir` trait
-    pub dir: DirTrait,
-
-    /// Information about the `File` trait
-    pub file: FileTrait,
-
-    /// Information about the `Entry` struct
-    pub entry: EntryStruct,
-}
-
-impl TryFrom<EmbedInput> for GenerationSettings {
-    type Error = Error;
-
-    fn try_from(value: EmbedInput) -> Result<Self, Self::Error> {
-        let root = expand_and_canonicalize(&value.path, get_env).map_err(|e| {
-            Error::new_spanned(
-                &value.ident,
-                format!(
-                    "Unable to expand and canonicalize path '{}': {:?}",
-                    &value.path, e
-                ),
-            )
-        })?;
-        let dir = DirTrait::try_from(value.dir).map_err(|e| e.into_syn(&value.ident))?;
-        let file = FileTrait::try_from(value.file).map_err(|e| e.into_syn(&value.ident))?;
-        let entry = EntryStruct::from(value.entry);
-
-        let traits = FieldTraits::try_from_attrs(value.fields, &dir, &file, &value.ident)?;
-
-        Ok(Self {
-            main_struct_ident: value.ident,
-            root,
-            traits,
-            with_extension: value.with_extension,
-            support_alt_separator: value.support_alt_separator,
-            dir,
-            file,
-            entry,
-        })
-    }
-}
-
 impl<'a> GenerateContext<'a> {
+    fn entry_trait(&self) -> Entry<&DirTrait, &FileTrait> {
+        self.settings.trait_for(self.entry.kind())
+    }
+
     /// Creates the root-level context
     fn root(settings: &'a GenerationSettings) -> Result<Self, syn::Error> {
         let entry = Entry::root(&settings.root).map_err(|e| {
@@ -278,6 +231,7 @@ impl<'a> GenerateContext<'a> {
         let entry_path = Self::make_nested_path(0, settings.entry.ident().to_owned());
         Ok(Self {
             level: 0,
+            fields: settings.dir.fields().filter(entry.path()),
             entry,
             names: UniqueNames::default(),
             struct_name: String::new(),
@@ -291,7 +245,7 @@ impl<'a> GenerateContext<'a> {
     }
 
     /// Creates a context for a child of the current
-    fn child(&self, entry: Entry) -> Self {
+    fn child(&self, entry: Entry<FsInfo>) -> Self {
         let struct_name = entry.path().ident.to_case(Case::Pascal);
         let struct_ident = Ident::new_raw(&struct_name, Span::call_site());
         let mod_name = entry.path().ident.to_case(Case::Snake);
@@ -301,6 +255,12 @@ impl<'a> GenerateContext<'a> {
 
         Self {
             level,
+            fields: self
+                .settings
+                .trait_for(entry.kind())
+                .map(|v| v.fields(), |v| v.fields())
+                .value()
+                .filter(entry.path()),
             entry,
             names: UniqueNames::default(),
             struct_name,
@@ -314,9 +274,9 @@ impl<'a> GenerateContext<'a> {
     }
 
     fn field_traits_implementation(&self) -> proc_macro2::TokenStream {
-        self.settings
-            .traits
+        self.fields
             .iter()
+            .filter(|t| t.is_match(self.entry.path()))
             .fold(proc_macro2::TokenStream::new(), |mut accum, field| {
                 accum.extend(field.implementation(self));
                 accum
@@ -526,7 +486,9 @@ mod tests {
             #[derive(Embed)]
             #[embed(
                 path = #path,
-                field(pattern = "*.txt", factory = "Handle", name = "handle"),
+                file(
+                    field(pattern = "*.txt", factory = "Handle", name = "handle"),
+                ),
             )]
             pub struct Assets;
         });
@@ -581,6 +543,19 @@ mod tests {
                     derive(Index),
                     derive(Meta),
                     derive(Debug),
+                    field(
+                        name = children,
+                        trait_name = AssetsChildrenField,
+                        factory = self::Children,
+                        pattern = "?*",
+                        regex = ".+",
+                    ),
+                    field(
+                        name = root_children,
+                        trait_name = AssetsRootChildrenField,
+                        factory = ::other::Children,
+                        regex = "",
+                    ),
                 ),
                 file(
                     trait_name = AssetsFile,
@@ -589,34 +564,20 @@ mod tests {
                     derive(Meta),
                     derive(Content),
                     derive(Debug),
+                    field(
+                        name = as_str,
+                        trait_name = AssetsAsStrField,
+                        factory = crate::AsStr,
+                        pattern = "*.txt",
+                        regex = ".+",
+                    ),
                 ),
                 entry(
                     struct_name = AssetsEntry,
                 ),
                 with_extension = true,
-                field(
-                    name = as_str,
-                    trait_name = AssetsAsStrField,
-                    factory = crate::AsStr,
-                    pattern = "*.txt",
-                    regex = ".+",
-                    target = "file"
-                ),
-                field(
-                    name = children,
-                    trait_name = AssetsChildrenField,
-                    factory = self::Children,
-                    pattern = "?*",
-                    regex = ".+",
-                    target = "dir"
-                ),
-                field(
-                    name = root_children,
-                    trait_name = AssetsRootChildrenField,
-                    factory = ::other::Children,
-                    regex = "",
-                    target = "dir"
-                ),
+
+
             )]
             pub struct Assets;
         });
@@ -634,8 +595,10 @@ mod tests {
             #[derive(Embed)]
             #[embed(
                 path = #path,
-                field(name = as_str, trait_name = AssetsAsStrField, factory = AsStr),
-                field(name = as_str2, trait_name = AssetsAsStrField, factory = AsStr),
+                file(
+                    field(name = as_str, trait_name = AssetsAsStrField, factory = AsStr),
+                    field(name = as_str2, trait_name = AssetsAsStrField, factory = AsStr),
+                )
             )]
             pub struct Assets;
         });
@@ -664,7 +627,6 @@ mod tests {
             path: path_str.to_owned(),
             with_extension: Default::default(),
             support_alt_separator: Default::default(),
-            fields: Default::default(),
             dir: Default::default(),
             file: Default::default(),
             entry: Default::default(),
@@ -825,6 +787,6 @@ mod tests {
 
         let err = impl_embed(input).unwrap_err().to_string();
 
-        assert_eq!(&err, "Feature 'md5' must be enabled to use 'Hash(md5)'");
+        assert_eq!(&err, "Unable to parse `file` attribute: Unable to resolve embedded trait: Feature 'md5' must be enabled to use 'Hash(md5)'");
     }
 }
