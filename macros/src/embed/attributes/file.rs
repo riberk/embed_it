@@ -7,39 +7,25 @@ use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
         content::ContentTrait, debug::DebugTrait, hashes::ids::*, meta::MetaTrait, path::PathTrait,
-        EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr, EMBEDED_TRAITS,
+        EmbeddedTrait, EnabledTraits, ResolveEmbeddedTraitError, TraitAttr, EMBEDED_TRAITS,
     },
 };
 
-fn default_file_traits() -> Vec<FileEmbeddedTrait> {
-    Vec::from([
-        FileEmbeddedTrait::Content,
-        FileEmbeddedTrait::Debug,
-        FileEmbeddedTrait::Meta,
-        FileEmbeddedTrait::Path,
-    ])
-}
+use super::derive_default_traits::DeriveDefaultTraits;
 
-#[derive(Debug, FromMeta)]
+#[derive(Debug, FromMeta, Default)]
 pub struct FileAttr {
+    #[darling(default, rename = "derive_default_traits")]
+    derive_default_traits: DeriveDefaultTraits,
+
     #[darling(default)]
     trait_name: Option<Ident>,
 
-    #[darling(default = default_file_traits, multiple, rename = "derive")]
+    #[darling(multiple, rename = "derive")]
     embedded_traits: Vec<FileEmbeddedTrait>,
 
     #[darling(default)]
     field_factory_trait_name: Option<Ident>,
-}
-
-impl Default for FileAttr {
-    fn default() -> Self {
-        Self {
-            trait_name: None,
-            embedded_traits: default_file_traits(),
-            field_factory_trait_name: None,
-        }
-    }
 }
 
 #[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
@@ -113,6 +99,17 @@ impl FileEmbeddedTrait {
     }
 }
 
+impl TryFrom<FileEmbeddedTrait> for &'static dyn EmbeddedTrait {
+    type Error = ResolveEmbeddedTraitError;
+
+    fn try_from(value: FileEmbeddedTrait) -> Result<Self, Self::Error> {
+        value.to_embedded_trait()
+    }
+}
+
+const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] =
+    &[&ContentTrait, &DebugTrait, &MetaTrait, &PathTrait];
+
 #[derive(Debug)]
 pub struct FileTrait {
     embedded_traits: Vec<&'static dyn EmbeddedTrait>,
@@ -123,12 +120,14 @@ pub struct FileTrait {
 impl TryFrom<FileAttr> for FileTrait {
     type Error = ResolveEmbeddedTraitError;
     fn try_from(value: FileAttr) -> Result<FileTrait, Self::Error> {
+        let enabled_traits = EnabledTraits::create(
+            value.derive_default_traits,
+            value.embedded_traits,
+            DEFAULT_TRAITS,
+        )?;
+
         let res = Self {
-            embedded_traits: value
-                .embedded_traits
-                .into_iter()
-                .map(|v| v.to_embedded_trait())
-                .collect::<Result<_, _>>()?,
+            embedded_traits: enabled_traits.into(),
             trait_name: value
                 .trait_name
                 .unwrap_or_else(|| Ident::new("File", Span::call_site())),
@@ -155,5 +154,67 @@ impl TraitAttr for FileTrait {
 
     fn struct_impl(&self, _: &GenerateContext<'_>, _: &[EntryTokens]) -> proc_macro2::TokenStream {
         quote! {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use darling::FromMeta;
+    use proc_macro2::Span;
+    use syn::{parse_quote, Ident};
+
+    use crate::embed::attributes::{
+        derive_default_traits::DeriveDefaultTraits, file::FileEmbeddedTrait,
+    };
+
+    use super::FileAttr;
+
+    #[test]
+    fn parse_all_fields() {
+        let meta: syn::Meta = parse_quote!(dir(
+            derive_default_traits,
+            trait_name = TraitName,
+            field_factory_trait_name = FieldFactory,
+            derive(Path),
+            derive(Content)
+        ));
+
+        let result = FileAttr::from_meta(&meta).unwrap();
+
+        assert_eq!(result.derive_default_traits, DeriveDefaultTraits::Yes);
+        assert_eq!(
+            result.trait_name,
+            Some(Ident::new("TraitName", Span::call_site()))
+        );
+        assert_eq!(
+            result.field_factory_trait_name,
+            Some(Ident::new("FieldFactory", Span::call_site()))
+        );
+        assert_eq!(
+            result.embedded_traits,
+            vec![FileEmbeddedTrait::Path, FileEmbeddedTrait::Content]
+        );
+    }
+
+    #[test]
+    fn default_fields() {
+        let meta: syn::Meta = parse_quote!(dir());
+
+        let result = FileAttr::from_meta(&meta).unwrap();
+
+        assert_eq!(result.derive_default_traits, DeriveDefaultTraits::Yes);
+        assert_eq!(result.trait_name, None);
+        assert_eq!(result.field_factory_trait_name, None);
+        assert_eq!(result.embedded_traits, Vec::default());
+    }
+
+    #[test]
+    fn default() {
+        let result = FileAttr::default();
+
+        assert_eq!(result.derive_default_traits, DeriveDefaultTraits::Yes);
+        assert_eq!(result.trait_name, None);
+        assert_eq!(result.field_factory_trait_name, None);
+        assert_eq!(result.embedded_traits, Vec::default());
     }
 }

@@ -7,41 +7,26 @@ use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
         debug::DebugTrait, entries::EntriesTrait, hashes::ids::*, index::IndexTrait,
-        meta::MetaTrait, path::PathTrait, EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr,
-        EMBEDED_TRAITS,
+        meta::MetaTrait, path::PathTrait, EmbeddedTrait, EnabledTraits, ResolveEmbeddedTraitError,
+        TraitAttr, EMBEDED_TRAITS,
     },
 };
 
-fn default_dir_traits() -> Vec<DirEmbeddedTrait> {
-    Vec::from([
-        DirEmbeddedTrait::Debug,
-        DirEmbeddedTrait::Entries,
-        DirEmbeddedTrait::Index,
-        DirEmbeddedTrait::Meta,
-        DirEmbeddedTrait::Path,
-    ])
-}
+use super::derive_default_traits::DeriveDefaultTraits;
 
-#[derive(Debug, FromMeta)]
+#[derive(Debug, FromMeta, Default)]
 pub struct DirAttr {
+    #[darling(default, rename = "derive_default_traits")]
+    derive_default_traits: DeriveDefaultTraits,
+
     #[darling(default)]
     trait_name: Option<Ident>,
 
-    #[darling(default = default_dir_traits, multiple, rename = "derive")]
+    #[darling(multiple, rename = "derive")]
     embedded_traits: Vec<DirEmbeddedTrait>,
 
     #[darling(default)]
     field_factory_trait_name: Option<Ident>,
-}
-
-impl Default for DirAttr {
-    fn default() -> Self {
-        Self {
-            trait_name: None,
-            embedded_traits: default_dir_traits(),
-            field_factory_trait_name: None,
-        }
-    }
 }
 
 #[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +104,14 @@ impl DirEmbeddedTrait {
     }
 }
 
+impl TryFrom<DirEmbeddedTrait> for &'static dyn EmbeddedTrait {
+    type Error = ResolveEmbeddedTraitError;
+
+    fn try_from(value: DirEmbeddedTrait) -> Result<Self, Self::Error> {
+        value.to_embedded_trait()
+    }
+}
+
 #[derive(Debug)]
 pub struct DirTrait {
     embedded_traits: Vec<&'static dyn EmbeddedTrait>,
@@ -126,15 +119,25 @@ pub struct DirTrait {
     field_factory_trait_name: Ident,
 }
 
+const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] = &[
+    &DebugTrait,
+    &EntriesTrait,
+    &IndexTrait,
+    &MetaTrait,
+    &PathTrait,
+];
+
 impl TryFrom<DirAttr> for DirTrait {
     type Error = ResolveEmbeddedTraitError;
     fn try_from(value: DirAttr) -> Result<Self, Self::Error> {
+        let enabled_traits = EnabledTraits::create(
+            value.derive_default_traits,
+            value.embedded_traits,
+            DEFAULT_TRAITS,
+        )?;
+
         let res = Self {
-            embedded_traits: value
-                .embedded_traits
-                .into_iter()
-                .map(|v| v.to_embedded_trait())
-                .collect::<Result<_, _>>()?,
+            embedded_traits: enabled_traits.into(),
             trait_name: value
                 .trait_name
                 .unwrap_or_else(|| Ident::new("Dir", Span::call_site())),
@@ -193,13 +196,16 @@ mod tests {
     use proc_macro2::Span;
     use syn::{parse_quote, Ident};
 
-    use crate::embed::attributes::dir::{default_dir_traits, DirEmbeddedTrait};
+    use crate::embed::attributes::{
+        derive_default_traits::DeriveDefaultTraits, dir::DirEmbeddedTrait,
+    };
 
     use super::DirAttr;
 
     #[test]
     fn parse_all_fields() {
         let meta: syn::Meta = parse_quote!(dir(
+            derive_default_traits = false,
             trait_name = TraitName,
             field_factory_trait_name = FieldFactory,
             derive(Path),
@@ -207,6 +213,8 @@ mod tests {
         ));
 
         let result = DirAttr::from_meta(&meta).unwrap();
+
+        assert_eq!(result.derive_default_traits, DeriveDefaultTraits::No,);
 
         assert_eq!(
             result.trait_name,
@@ -228,17 +236,19 @@ mod tests {
 
         let result = DirAttr::from_meta(&meta).unwrap();
 
+        assert_eq!(result.derive_default_traits, DeriveDefaultTraits::Yes);
         assert_eq!(result.trait_name, None);
         assert_eq!(result.field_factory_trait_name, None);
-        assert_eq!(result.embedded_traits, default_dir_traits());
+        assert_eq!(result.embedded_traits, Vec::default());
     }
 
     #[test]
     fn default() {
         let result = DirAttr::default();
 
+        assert_eq!(result.derive_default_traits, DeriveDefaultTraits::Yes);
         assert_eq!(result.trait_name, None);
         assert_eq!(result.field_factory_trait_name, None);
-        assert_eq!(result.embedded_traits, default_dir_traits());
+        assert_eq!(result.embedded_traits, Vec::default());
     }
 }

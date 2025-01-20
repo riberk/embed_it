@@ -48,29 +48,35 @@ pub struct Assets;
 ## Fields
 
 ### embed
-| field             | type             | multiple | required | default                | description                                                                                                                                                                                                                                                                                 |
-|-------------------|------------------|----------|----------|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `path`            | `String`         | false    | true     | -                      | The path to the directory with assets. It may contain [compile-time environment variables](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) (or user defined) in format `$CARGO_MANIFEST_DIR` or `${CARGO_MANIFEST_DIR}`   |
-| `dir`             | `DirAttr`        | false    | false    | `DirAttr::default()`   | Change settings, how `Dir`-trait and its implementations will be generated. See more in [Dir Attr](#DirAttr) section                                                                                                                                                                        |
-| `file`            | `FileAttr`       | false    | false    | `FileAttr::default()`  | Change settings, how  `File` -trait and its implementations will be generated. See more in [File Attr](#FileAttr) section                                                                                                                                                                   |
-| `entry`           | `EntryAttr`      | false    | false    | `EntryAttr::default()` | Change settings, how  `Entry` -struct and its implementations will be generated. See more in [Entry Attr](#EntryAttr) section                                                                                                                                                               |
-| `field`           | `Vec<FieldAttr>` | true     | false    | `vec![]`               | Add additional "fields" for dirs and files. See more in [Field Attr](#FieldAttr)                                                                                                                                                                                                            |
-| `with_extension`  | `bool`           | false    | false    | `false`                | Use file extensions for method and struct name                                                                                                                                                                                                                                              |
+
+The main attribute
+
+| field                    | type             | multiple | required | default                | description                                                                                                                                                                                                                                                                                 |
+|--------------------------|------------------|----------|----------|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `path`                   | `String`         | false    | true     | -                      | The path to the directory with assets. It may contain [compile-time environment variables](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) (or user defined) in format `$CARGO_MANIFEST_DIR` or `${CARGO_MANIFEST_DIR}`   |
+| `dir`                    | `DirAttr`        | false    | false    | `DirAttr::default()`   | Change settings, how `Dir`-trait and its implementations will be generated. See more in [Dir Attr](#DirAttr) section                                                                                                                                                                        |
+| `file`                   | `FileAttr`       | false    | false    | `FileAttr::default()`  | Change settings, how  `File` -trait and its implementations will be generated. See more in [File Attr](#FileAttr) section                                                                                                                                                                   |
+| `entry`                  | `EntryAttr`      | false    | false    | `EntryAttr::default()` | Change settings, how  `Entry` -struct and its implementations will be generated. See more in [Entry Attr](#EntryAttr) section                                                                                                                                                               |
+| `field`                  | `Vec<FieldAttr>` | true     | false    | `vec![]`               | Add additional "fields" for dirs and files. See more in [Field Attr](#FieldAttr)                                                                                                                                                                                                            |
+| `with_extension`         | `bool`           | false    | false    | `false`                | Use file extensions for method and struct name                                                                                                                                                                                                                                              |
+| `support_alt_separator`  | `bool`           | false    | false    | `false`                | If true, getting value from directory's `Index` replaces `\` with `/`. In the other words you can use windows-style paths with get-method like `Assets.get("a\\b\\c.txt")`                                                                                                                  |
 
 ### <a name="DirAttr"></a> DirAttr
 
 | field                      | type            | multiple | required | default                                                                    | description                                                                                                                                                                      |
 |----------------------------|-----------------|----------|----------|----------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                                                     | What trait name will be used for a directory                                                                                                                                     |
-| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                                                     | What trait name will be used for a directory field factory                                                                                                                       |
+| `derive_default_traits`    | `bool`          | false    | false    | `true`                                                                     | Will default traits be derived (see `derive` row in the table)                                                                                                                   |
+| `trait_name`               | `Ident`         | false    | false    | `Dir`                                                                      | What trait name will be used for a directory                                                                                                                                     |
+| `field_factory_trait_name` | `Ident`         | false    | false    | `DirFieldFactory`                                                          | What trait name will be used for a directory field factory                                                                                                                       |
 | `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug`                                | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
 
 ### <a name="FileAttr"></a> FileAttr
 
 | field                      | type            | multiple | required | default                                                           | description                                                                                                                                                                      |
 |----------------------------|-----------------|----------|----------|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `trait_name`               | `Option<Ident>` | false    | false    | `None`                                                            | What trait name will be used for a directory                                                                                                                                     |
-| `field_factory_trait_name` | `Option<Ident>` | false    | false    | `None`                                                            | What trait name will be used for a directory field factory                                                                                                                       |
+| `derive_default_traits`    | `bool`          | false    | false    | `true`                                                            | Will default traits be derived (see `derive` row in the table)                                                                                                                   |
+| `trait_name`               | `Ident`         | false    | false    | `File`                                                            | What trait name will be used for a directory                                                                                                                                     |
+| `field_factory_trait_name` | `Ident`         | false    | false    | `FileFieldFactory`                                                | What trait name will be used for a directory field factory                                                                                                                       |
 | `derive`                   | `Vec<DirTrait>` | true     | false    | `Path`, `Meta`, `Debug`, `Content`                                | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
 
 ### <a name="EmbeddedTraits_list"></a> EmbeddedTraits list
@@ -83,13 +89,14 @@ pub struct Assets;
 | **Meta**    | [`crate::Meta`]         | any             |                                                                     | Provides metadata of an entry                                                                                                                                     |
 | **Debug**   | [`std::fmt::Debug`]     | any             |                                                                     | Debugs structs                                                                                                                                                    |
 | **Content** | [`crate::Content`]      | file            |                                                                     | Provides content of a file                                                                                                                                        |
+| **Hashes**  | *\<various\>*           | any             |                                                                     | Provides hash of a file content or a directory structure with files' hashes                                                                                       |
 
 
 
 ### <a name="EntryAttr"></a> EntryAttr
 | field                      | type            | multiple | required | default                                     | description                                                                                                                                      |
 |----------------------------|-----------------|----------|----------|---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `struct_name`              | `Option<Ident>` | false    | false    | `None`                                      | What struct name will be used for an entry                                                                                                       |
+| `struct_name`              | `Ident`         | false    | false    | `Entry`                                     | What struct name will be used for an entry                                                                                                       |
 
 ### <a name="FieldAttr"></a> FieldAttr
 
@@ -104,7 +111,7 @@ pub struct Assets;
 
 ### <a name="HashTraits"></a> Hash traits
 
-You can use any combination of hash traits on `dir` and `file`. For a file it hashes it's content, for a dir it hashes every entry name and entry hash if applicable (order - dirs, then files, by path). Hash stores as a constant array of bytes;
+You can use any combination of hash traits on `dir` and `file`. For a file it hashes it's content, for a dir it hashes every entry name and entry hash if applicable (order - (dirs > files) then by path). Hash stores as a constant array of bytes;
 
 | Derive     | Required feature | Trait                     | 
 |------------|------------------|---------------------------| 
@@ -123,72 +130,83 @@ You can use any combination of hash traits on `dir` and `file`. For a file it ha
 The example below compiles only if all hash features from table above enabled;
 
 ```rust
-
-use std::str::from_utf8;
-use embed_it::Embed;
-
-#[derive(Embed)]
-#[embed(
-    path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
-    dir(
-        derive(Md5),
-        derive(Sha1),
-        derive(Sha2_224),
-        derive(Sha2_256),
-        derive(Sha2_384),
-        derive(Sha2_512),
-        derive(Sha3_224),
-        derive(Sha3_256),
-        derive(Sha3_384),
-        derive(Sha3_512),
-        derive(Blake3),
-    ),
-    file(
-        derive(Md5),
-        derive(Sha1),
-        derive(Sha2_224),
-        derive(Sha2_256),
-        derive(Sha2_384),
-        derive(Sha2_512),
-        derive(Sha3_224),
-        derive(Sha3_256),
-        derive(Sha3_384),
-        derive(Sha3_512),
-        derive(Blake3),
-    ),
+#[cfg(
+    all(
+        feature = "md5",
+        feature = "sha1",
+        feature = "sha2",
+        feature = "sha3",
+        feature = "blake3"
+    )
 )]
-pub struct Assets;
+mod lib {
+    use std::str::from_utf8;
+    use embed_it::Embed;
 
-# fn main() {
-use embed_it::{ 
-    Md5Hash, 
-    Sha1Hash, 
-    Sha2_224Hash, 
-    Sha2_256Hash, 
-    Sha2_384Hash, 
-    Sha2_512Hash, 
-    Sha3_224Hash,
-    Sha3_256Hash,
-    Sha3_384Hash,
-    Sha3_512Hash,
-    Blake3_256Hash, 
-};
+    #[derive(Embed)]
+    #[embed(
+        path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
+        dir(
+            derive(Md5),
+            derive(Sha1),
+            derive(Sha2_224),
+            derive(Sha2_256),
+            derive(Sha2_384),
+            derive(Sha2_512),
+            derive(Sha3_224),
+            derive(Sha3_256),
+            derive(Sha3_384),
+            derive(Sha3_512),
+            derive(Blake3),
+        ),
+        file(
+            derive(Md5),
+            derive(Sha1),
+            derive(Sha2_224),
+            derive(Sha2_256),
+            derive(Sha2_384),
+            derive(Sha2_512),
+            derive(Sha3_224),
+            derive(Sha3_256),
+            derive(Sha3_384),
+            derive(Sha3_512),
+            derive(Blake3),
+        ),
+    )]
+    pub struct Assets;
 
-use hex_literal::hex;
+    # fn main() {
+    use embed_it::{ 
+        Md5Hash, 
+        Sha1Hash, 
+        Sha2_224Hash, 
+        Sha2_256Hash, 
+        Sha2_384Hash, 
+        Sha2_512Hash, 
+        Sha3_224Hash,
+        Sha3_256Hash,
+        Sha3_384Hash,
+        Sha3_512Hash,
+        Blake3_256Hash, 
+    };
 
-assert_eq!(Assets.md5(), &hex!("56e71a41c76b1544c52477adf4c8e2f7"));
-assert_eq!(Assets.sha1(), &hex!("26da80338f55108be5bcce49285a4154f6705599"));
-assert_eq!(Assets.sha2_224(), &hex!("360c16e2d8135a337cc6ddf4134ec9cc69dd65b779db2a2807f941e4"));
-assert_eq!(Assets.sha2_256(), &hex!("e16b758a01129c86f871818a7b4e31c88a3c6b69d9c8319bcbc881b58f067b25"));
-assert_eq!(Assets.sha2_384(), &hex!("de4656a27347eee72aea1d15e85f20439673709cde5339772660bbd9d800bbde9f637eb3505f572140432625f3948175"));
-assert_eq!(Assets.sha2_512(), &hex!("bc1673b560316c6586fa1ec98ca5df3e303b66ddae944b05c71314806f88bd4b8f4c7832dfb7dd729eaca191b7142936d21bd07f750c9bc35d67f218e51bbaa4"));
-assert_eq!(Assets.sha3_224(), &hex!("6949265b40fa55e0c194e3591f90e6cbf0ac100d7ed32e71d6e1e753"));
-assert_eq!(Assets.sha3_256(), &hex!("a2d99103dc2d1967fb05c4de99a1432e9afb1f5acc698fefb2112ce7fb9335c4"));
-assert_eq!(Assets.sha3_384(), &hex!("cf1f50cb53dc61b3519227887bfb20230b6878d32b10c5a9bfe016095aaecc593e612a165c89488109da62138a7214d8"));
-assert_eq!(Assets.sha3_512(), &hex!("aeff4601a53fecdad418f3245676398719d507bd7b971098ad3f4c2d495c2cc96faf022f481c0bebc0632492abd8eb9fe9f8af6d25664f33d61ff316d269682a"));
-assert_eq!(Assets.blake3_256(), &hex!("b5947e2140b0fe744b1afe9a9f9031e72571c85db079413a67b4a9309f581de7"));
+    use hex_literal::hex;
 
-# }
+    assert_eq!(Assets.md5(), &hex!("56e71a41c76b1544c52477adf4c8e2f7"));
+    assert_eq!(Assets.sha1(), &hex!("26da80338f55108be5bcce49285a4154f6705599"));
+    assert_eq!(Assets.sha2_224(), &hex!("360c16e2d8135a337cc6ddf4134ec9cc69dd65b779db2a2807f941e4"));
+    assert_eq!(Assets.sha2_256(), &hex!("e16b758a01129c86f871818a7b4e31c88a3c6b69d9c8319bcbc881b58f067b25"));
+    assert_eq!(Assets.sha2_384(), &hex!("de4656a27347eee72aea1d15e85f20439673709cde5339772660bbd9d800bbde9f637eb3505f572140432625f3948175"));
+    assert_eq!(Assets.sha2_512(), &hex!("bc1673b560316c6586fa1ec98ca5df3e303b66ddae944b05c71314806f88bd4b8f4c7832dfb7dd729eaca191b7142936d21bd07f750c9bc35d67f218e51bbaa4"));
+    assert_eq!(Assets.sha3_224(), &hex!("6949265b40fa55e0c194e3591f90e6cbf0ac100d7ed32e71d6e1e753"));
+    assert_eq!(Assets.sha3_256(), &hex!("a2d99103dc2d1967fb05c4de99a1432e9afb1f5acc698fefb2112ce7fb9335c4"));
+    assert_eq!(Assets.sha3_384(), &hex!("cf1f50cb53dc61b3519227887bfb20230b6878d32b10c5a9bfe016095aaecc593e612a165c89488109da62138a7214d8"));
+    assert_eq!(Assets.sha3_512(), &hex!("aeff4601a53fecdad418f3245676398719d507bd7b971098ad3f4c2d495c2cc96faf022f481c0bebc0632492abd8eb9fe9f8af6d25664f33d61ff316d269682a"));
+    assert_eq!(Assets.blake3_256(), &hex!("b5947e2140b0fe744b1afe9a9f9031e72571c85db079413a67b4a9309f581de7"));
+
+    # }
+}
+
 
 ```
 

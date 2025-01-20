@@ -60,7 +60,7 @@ pub fn tests_dir() -> &'static Path {
     DIR.get_or_init(|| {
         let path = target_dir().join("test_data");
         if !path.exists() {
-            create_dir_all(&path);
+            remove_and_create_dir_all(&path);
         }
 
         if !path.is_dir() {
@@ -80,6 +80,14 @@ pub fn create_file(path: impl AsRef<Path>, content: &[u8]) {
         .unwrap_or_else(|e| panic!("Unable to open file '{path:?}': {e:#?}"))
         .write_all(content)
         .unwrap_or_else(|e| panic!("Unable to write a content into '{path:?}': {e:#?}"));
+}
+
+pub fn remove_and_create_dir_all(path: impl AsRef<Path>) {
+    let path = path.as_ref();
+    if path.exists() {
+        remove_dir_all(path);
+    }
+    create_dir_all(path);
 }
 
 pub fn create_dir_all(path: impl AsRef<Path>) {

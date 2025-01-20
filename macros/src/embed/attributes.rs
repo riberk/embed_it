@@ -1,3 +1,4 @@
+pub mod derive_default_traits;
 pub mod dir;
 pub mod embed;
 pub mod entry;

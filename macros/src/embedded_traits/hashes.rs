@@ -41,6 +41,13 @@ pub trait Hasher: std::io::Write {
 pub struct HashTrait<T>(T);
 
 impl<T: HashAlg + Debug> HashTrait<T> {
+    #[cfg(any(
+        feature = "md5",
+        feature = "sha1",
+        feature = "sha2",
+        feature = "sha3",
+        feature = "blake3"
+    ))]
     pub const fn new(alg: T) -> Self {
         Self(alg)
     }

@@ -473,7 +473,7 @@ mod tests {
     use crate::{
         fn_name,
         test_helpers::{
-            create_dir_all, create_file, derive_input, remove_dir_all, tests_dir, Print,
+            create_dir_all, create_file, derive_input, remove_and_create_dir_all, tests_dir, Print,
         },
     };
 
@@ -485,10 +485,7 @@ mod tests {
     #[test]
     fn check_macros_simple() {
         let current_dir = tests_dir().join(fn_name!());
-        if current_dir.exists() {
-            remove_dir_all(&current_dir);
-        }
-        create_dir_all(&current_dir);
+        remove_and_create_dir_all(&current_dir);
         create_file(current_dir.join("file1.txt"), b"hello");
 
         let subdir1 = current_dir.join("subdir1");
@@ -509,10 +506,7 @@ mod tests {
     #[test]
     fn check_macros() {
         let current_dir = tests_dir().join(fn_name!());
-        if current_dir.exists() {
-            remove_dir_all(&current_dir);
-        }
-        create_dir_all(&current_dir);
+        remove_and_create_dir_all(&current_dir);
         create_file(current_dir.join("file1.txt"), b"hello");
         create_file(current_dir.join("file2.txt"), b"world");
 
@@ -543,10 +537,7 @@ mod tests {
     #[test]
     fn check_macros_the_same_normalized_names() {
         let current_dir = tests_dir().join(fn_name!());
-        if current_dir.exists() {
-            remove_dir_all(&current_dir);
-        }
-        create_dir_all(&current_dir);
+        remove_and_create_dir_all(&current_dir);
         create_dir_all(current_dir.join("subdir.txt"));
         create_dir_all(current_dir.join("subdir_txt"));
         create_dir_all(current_dir.join("subdir+txt"));
@@ -568,10 +559,7 @@ mod tests {
     #[test]
     fn all_attributes() {
         let current_dir = tests_dir().join(fn_name!());
-        if current_dir.exists() {
-            remove_dir_all(&current_dir);
-        }
-        create_dir_all(&current_dir);
+        remove_and_create_dir_all(&current_dir);
         create_dir_all(current_dir.join("subdir.txt"));
         create_dir_all(current_dir.join("subdir_txt"));
         create_dir_all(current_dir.join("subdir+txt"));
@@ -640,10 +628,7 @@ mod tests {
     fn same_field_traits() {
         let current_dir = tests_dir().join(fn_name!());
         let path = current_dir.to_str().unwrap();
-        if current_dir.exists() {
-            remove_dir_all(&current_dir);
-        }
-        create_dir_all(&current_dir);
+        remove_and_create_dir_all(&current_dir);
 
         let input = derive_input(quote! {
             #[derive(Embed)]
@@ -672,9 +657,6 @@ mod tests {
     fn generation_settings_creation_error_path_does_not_exist() {
         let dir_name = fn_name!();
         let current_dir = tests_dir().join(&dir_name);
-        if current_dir.exists() {
-            remove_dir_all(&current_dir);
-        }
 
         let path_str = current_dir.to_str().unwrap();
         let input = EmbedInput {
@@ -689,10 +671,7 @@ mod tests {
         };
         let err = GenerationSettings::try_from(input).unwrap_err();
         let err_str = format!("{err:?}");
-        assert!(
-            err_str.contains(&dir_name),
-            "Unable to find dir name '{dir_name}' in error debug output '{err_str}'"
-        );
+        assert!(err_str.contains(&dir_name));
     }
 
     #[test]
@@ -715,10 +694,7 @@ mod tests {
     ))]
     fn hashes() {
         let current_dir = tests_dir().join(fn_name!());
-        if current_dir.exists() {
-            remove_dir_all(&current_dir);
-        }
-        create_dir_all(&current_dir);
+        remove_and_create_dir_all(&current_dir);
         create_file(current_dir.join("hello.txt"), b"hello");
         create_file(current_dir.join("world.txt"), b"world");
         create_file(current_dir.join("one.txt"), b"one");
@@ -775,10 +751,7 @@ mod tests {
     #[cfg(feature = "md5")]
     fn hashes_only_dir() {
         let current_dir = tests_dir().join(fn_name!());
-        if current_dir.exists() {
-            remove_dir_all(&current_dir);
-        }
-        create_dir_all(&current_dir);
+        remove_and_create_dir_all(&current_dir);
         create_file(current_dir.join("hello.txt"), b"hello");
         create_file(current_dir.join("world.txt"), b"world");
         create_file(current_dir.join("one.txt"), b"one");
@@ -808,10 +781,7 @@ mod tests {
     #[cfg(feature = "md5")]
     fn hashes_only_file() {
         let current_dir = tests_dir().join(fn_name!());
-        if current_dir.exists() {
-            remove_dir_all(&current_dir);
-        }
-        create_dir_all(&current_dir);
+        remove_and_create_dir_all(&current_dir);
         create_file(current_dir.join("hello.txt"), b"hello");
         create_file(current_dir.join("world.txt"), b"world");
         create_file(current_dir.join("one.txt"), b"one");
@@ -833,5 +803,28 @@ mod tests {
         });
 
         impl_embed(input).print_to_std_out();
+    }
+
+    #[test]
+    #[cfg(not(feature = "md5"))]
+    fn hash_with_disabled_feature() {
+        let current_dir = tests_dir().join(fn_name!());
+        remove_and_create_dir_all(&current_dir);
+        create_file(current_dir.join("hello.txt"), b"hello");
+
+        let path = current_dir.to_str().unwrap();
+
+        let input = derive_input(quote! {
+            #[derive(Embed)]
+            #[embed(
+                path = #path,
+                file(derive(Md5)),
+            )]
+            pub struct Assets;
+        });
+
+        let err = impl_embed(input).unwrap_err().to_string();
+
+        assert_eq!(&err, "Feature 'md5' must be enabled to use 'Hash(md5)'");
     }
 }

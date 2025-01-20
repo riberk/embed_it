@@ -32,6 +32,10 @@ impl FromMeta for SupportAltSeparator {
     fn from_string(value: &str) -> darling::Result<Self> {
         Self::darling_from_string(value)
     }
+
+    fn from_word() -> darling::Result<Self> {
+        Ok(Self::Yes)
+    }
 }
 
 #[cfg(test)]
@@ -45,6 +49,10 @@ mod tests {
     fn from_meta() {
         assert_eq!(
             SupportAltSeparator::from_meta(&parse_quote!(value = true)).unwrap(),
+            SupportAltSeparator::Yes
+        );
+        assert_eq!(
+            SupportAltSeparator::from_meta(&parse_quote!(value)).unwrap(),
             SupportAltSeparator::Yes
         );
         assert_eq!(
