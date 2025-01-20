@@ -1,0 +1,68 @@
+name: publish
+
+on:
+  push:
+    tags:        
+      - 'releases/v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    name: Build and test
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: true
+      matrix:
+        toolchain: [stable, nightly]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: "clippy"
+      - uses: taiki-e/install-action@nextest
+      - run: cargo clippy --verbose --all-features -- -D warnings
+      - run: cargo build --verbose --all-features
+      - run: cargo nextest run --verbose --all-features
+        env: { RUST_BACKTRACE: 1 }
+      - run: cargo nextest run --verbose
+        env: { RUST_BACKTRACE: 1 }
+      - run: cargo test --verbose --all-features --doc
+        env: { RUST_BACKTRACE: 1 }
+      - run: cargo test --verbose --doc
+        env: { RUST_BACKTRACE: 1 }
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.81
+      - uses: taiki-e/install-action@nextest
+      - run: cargo build --verbose --all-features
+      - run: cargo nextest run --verbose --all-features
+        env:
+          RUST_BACKTRACE: 1
+      - run: cargo test --verbose --all-features --doc
+        env:
+          RUST_BACKTRACE: 1
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [build_and_test, msrv]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: echo "VERSION=$(echo -n $GITHUB_REF | sed --expression='s|refs/tag/release/v||g')" >> $GITHUB_ENV
+      - run: sed -i -E "s/^version = \".+\"$/version = \"$VERSION\"/g" Cargo.toml
+      - run: sed -i -E "s/^embed_it_macros = \{ version = \".+\", path = \"(.+)\" \}$/embed_it_macros = \{ version = \"^$VERSION\", path = \"\1\" \}/g" embed_it/Cargo.toml
+      - run: cargo login "${CRATES_IO_PUSH_TOKEN}"
+        env: 
+          CRATES_IO_PUSH_TOKEN: ${{ secrets.CRATES_IO_PUSH_TOKEN }}
+      - run: cargo publish -p embed_it_macros --dry-run
+      - run: cargo publish -p embed_it --dry-run
+      - run: cargo publish -p embed_it_macros
+      - run: cargo publish -p embed_it
+
