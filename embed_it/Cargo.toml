@@ -13,7 +13,7 @@ categories = {workspace = true}
 readme = "README.md"
 
 [dependencies]
-embed_it_macros = { version = "^2.0.4", path = "../macros" }
+embed_it_macros = { version = "^3.0.0", path = "../macros" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
