@@ -25,11 +25,11 @@ jobs:
 
       - run: cargo +nightly llvm-cov nextest --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --no-report
       - run: cargo +nightly llvm-cov --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
-      
+
       - run: echo "COVERAGE=$(cargo +nightly llvm-cov report --summary-only --json | jq '.data[0].totals.lines.percent | . * 100 | round / 100')" >> $GITHUB_ENV
       - run: cargo +nightly llvm-cov report --ignore-filename-regex=".+/macros/src/test_helpers.rs" --html
       - run: mkdir -p ./public/badges
-      - run: mv ./targe/llvm-cov/html ./public/coverage_report
+      - run: mv ./target/llvm-cov/html ./public/coverage_report
       - run: ./scripts/download_coverage_shield.sh ${COVERAGE} > public/badges/coverage.svg
       - uses: peaceiris/actions-gh-pages@v3
         with:
