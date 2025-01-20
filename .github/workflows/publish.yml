@@ -61,8 +61,8 @@ jobs:
       - run: cargo login "${CRATES_IO_PUSH_TOKEN}"
         env: 
           CRATES_IO_PUSH_TOKEN: ${{ secrets.CRATES_IO_PUSH_TOKEN }}
-      - run: cargo publish -p embed_it_macros --dry-run
-      - run: cargo publish -p embed_it --dry-run
+      - run: cargo publish -p embed_it_macros --dry-run --allow-dirty
+      - run: cargo publish -p embed_it --dry-run --allow-dirty
       - run: cargo publish -p embed_it_macros --allow-dirty
       - run: cargo publish -p embed_it --allow-dirty
 
