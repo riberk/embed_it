@@ -9,49 +9,49 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # build_and_test:
-  #   name: Build and test
-  #   runs-on: ${{ matrix.platform }}
-  #   strategy:
-  #     fail-fast: true
-  #     matrix:
-  #       toolchain: [stable, nightly]
-  #       platform: [ubuntu-latest, macos-latest, windows-latest]
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: dtolnay/rust-toolchain@stable
-  #       with:
-  #         toolchain: ${{ matrix.toolchain }}
-  #         components: "clippy"
-  #     - uses: taiki-e/install-action@nextest
-  #     - run: cargo clippy --verbose --all-features -- -D warnings
-  #     - run: cargo build --verbose --all-features
-  #     - run: cargo nextest run --verbose --all-features
-  #       env: { RUST_BACKTRACE: 1 }
-  #     - run: cargo nextest run --verbose
-  #       env: { RUST_BACKTRACE: 1 }
-  #     - run: cargo test --verbose --all-features --doc
-  #       env: { RUST_BACKTRACE: 1 }
-  #     - run: cargo test --verbose --doc
-  #       env: { RUST_BACKTRACE: 1 }
+  build_and_test:
+    name: Build and test
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: true
+      matrix:
+        toolchain: [stable, nightly]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: "clippy"
+      - uses: taiki-e/install-action@nextest
+      - run: cargo clippy --verbose --all-features -- -D warnings
+      - run: cargo build --verbose --all-features
+      - run: cargo nextest run --verbose --all-features
+        env: { RUST_BACKTRACE: 1 }
+      - run: cargo nextest run --verbose
+        env: { RUST_BACKTRACE: 1 }
+      - run: cargo test --verbose --all-features --doc
+        env: { RUST_BACKTRACE: 1 }
+      - run: cargo test --verbose --doc
+        env: { RUST_BACKTRACE: 1 }
 
-  # msrv:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: dtolnay/rust-toolchain@1.81
-  #     - uses: taiki-e/install-action@nextest
-  #     - run: cargo build --verbose --all-features
-  #     - run: cargo nextest run --verbose --all-features
-  #       env:
-  #         RUST_BACKTRACE: 1
-  #     - run: cargo test --verbose --all-features --doc
-  #       env:
-  #         RUST_BACKTRACE: 1
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.81
+      - uses: taiki-e/install-action@nextest
+      - run: cargo build --verbose --all-features
+      - run: cargo nextest run --verbose --all-features
+        env:
+          RUST_BACKTRACE: 1
+      - run: cargo test --verbose --all-features --doc
+        env:
+          RUST_BACKTRACE: 1
 
   publish:
     runs-on: ubuntu-latest
-    # needs: [build_and_test, msrv]
+    needs: [build_and_test, msrv]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
