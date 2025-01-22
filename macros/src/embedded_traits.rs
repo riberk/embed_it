@@ -1,3 +1,4 @@
+pub mod compression;
 pub mod content;
 pub mod debug;
 pub mod direct_child_count;
@@ -7,6 +8,7 @@ pub mod index;
 pub mod meta;
 pub mod path;
 pub mod recursive_child_count;
+pub mod str_content;
 
 use std::{
     borrow::Cow,
@@ -16,17 +18,19 @@ use std::{
     sync::LazyLock,
 };
 
-use hashes::ids;
+use embed_it_utils::entry::EntryKind;
 use quote::quote;
 use syn::{parse_quote, punctuated::Punctuated, Ident, Token, TraitBound, TypeParamBound};
 
 use crate::{
     embed::{
-        attributes::{derive_default_traits::DeriveDefaultTraits, field::FieldTraits},
+        attributes::{
+            derive_default_traits::DeriveDefaultTraits, embed::GenerationSettings,
+            entry::EntryStruct, field::FieldTraits,
+        },
         bool_like_enum::BoolLikeEnum,
         EntryTokens, GenerateContext, IndexTokens,
     },
-    fs::EntryKind,
     marker_traits::MarkerTrait,
 };
 
@@ -36,6 +40,7 @@ impl Default for AllEmbededTraits {
     fn default() -> Self {
         let mut map = Self(HashMap::new());
         map.add(&content::ContentTrait);
+        map.add(&str_content::StrContentTrait);
         map.add(&debug::DebugTrait);
         map.add(&entries::EntriesTrait);
         map.add(&index::IndexTrait);
@@ -69,6 +74,15 @@ impl Default for AllEmbededTraits {
         #[cfg(feature = "blake3")]
         map.add(hashes::blake3::BLAKE3);
 
+        #[cfg(feature = "zstd")]
+        map.add(compression::zstd::ZSTD);
+
+        #[cfg(feature = "gzip")]
+        map.add(compression::gzip::GZIP);
+
+        #[cfg(feature = "brotli")]
+        map.add(compression::brotli::BROTLI);
+
         map
     }
 }
@@ -83,7 +97,20 @@ impl AllEmbededTraits {
 
     pub fn get_hash_trait(
         &self,
-        id: &'static ids::AlgId,
+        id: &'static hashes::ids::AlgId,
+    ) -> Result<&'static dyn EmbeddedTrait, FeatureDisabled> {
+        self.0
+            .get(id.id)
+            .ok_or(FeatureDisabled {
+                requested: id.id,
+                feature: id.feature,
+            })
+            .copied()
+    }
+
+    pub fn get_compress_trait(
+        &self,
+        id: &'static compression::ids::AlgId,
     ) -> Result<&'static dyn EmbeddedTrait, FeatureDisabled> {
         self.0
             .get(id.id)
@@ -139,13 +166,13 @@ impl Display for FeatureDisabled {
 pub trait EmbeddedTrait: Send + Sync + Debug {
     fn id(&self) -> &'static str;
 
-    fn path(&self, nesting: usize) -> syn::Path;
+    fn path(&self, nesting: usize, settings: &GenerationSettings) -> syn::Path;
 
     /// Definition of the trait. If it is external trait (like Debug) it returns None
-    fn definition(&self, entry_path: &syn::Ident) -> Option<proc_macro2::TokenStream>;
+    fn definition(&self, settings: &GenerationSettings) -> Option<proc_macro2::TokenStream>;
 
-    fn bound(&self) -> TraitBound {
-        let path = self.path(0);
+    fn bound(&self, settings: &GenerationSettings) -> TraitBound {
+        let path = self.path(0, settings);
         parse_quote!(#path)
     }
 
@@ -162,7 +189,7 @@ pub trait EmbeddedTrait: Send + Sync + Debug {
         entries: &[EntryTokens],
         index: &[IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
-        let trait_path = self.path(ctx.level);
+        let trait_path = self.path(ctx.level, ctx.settings);
         let body = self.impl_body(ctx, entries, index)?;
         let struct_ident = &ctx.struct_ident;
 
@@ -173,21 +200,13 @@ pub trait EmbeddedTrait: Send + Sync + Debug {
             }
         })
     }
-
-    fn entry_impl_body(&self) -> proc_macro2::TokenStream;
 }
 
 #[derive(Debug)]
 pub enum MakeEmbeddedTraitImplementationError {
-    Custom(
-        #[allow(dead_code)] Cow<'static, str>,
-        #[allow(dead_code)] Option<Box<dyn Error>>,
-    ),
+    Custom(Cow<'static, str>, Option<Box<dyn Error>>),
     UnsupportedEntry {
-        #[allow(dead_code)]
         entry: EntryKind,
-
-        #[allow(dead_code)]
         trait_id: &'static str,
     },
 }
@@ -210,6 +229,10 @@ pub trait TraitAttr {
 
     fn markers(&self) -> impl Iterator<Item = &'static dyn MarkerTrait>;
 
+    fn entry_trait_ident<'a>(&self, entry: &'a EntryStruct) -> &'a Ident;
+
+    fn entry_struct_ident<'a>(&self, entry: &'a EntryStruct) -> &'a Ident;
+
     fn struct_impl(
         &self,
         ctx: &GenerateContext<'_>,
@@ -222,7 +245,7 @@ pub trait TraitAttr {
         self.embedded_traits().any(|t| t.id() == expected)
     }
 
-    fn definition(&self) -> proc_macro2::TokenStream {
+    fn definition(&self, settings: &GenerationSettings) -> proc_macro2::TokenStream {
         let trait_ident = self.trait_ident();
 
         let mut bounds = Punctuated::<TypeParamBound, Token![+]>::new();
@@ -230,7 +253,7 @@ pub trait TraitAttr {
         bounds.push(parse_quote!(Sync));
 
         for t in self.embedded_traits() {
-            bounds.push(TypeParamBound::Trait(t.bound()));
+            bounds.push(TypeParamBound::Trait(t.bound(settings)));
         }
 
         quote! {
@@ -252,6 +275,8 @@ pub trait TraitAttr {
         index: &[IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         let trait_ident = self.trait_ident();
+        let entry_trait_ident = self.entry_trait_ident(&ctx.settings.entry);
+
         let mut impl_stream = quote! {};
 
         for t in self.embedded_traits() {
@@ -263,6 +288,7 @@ pub trait TraitAttr {
         }
 
         let trait_path = ctx.make_level_path(trait_ident.to_owned());
+        let entry_trait_path = ctx.make_level_path(entry_trait_ident.to_owned());
         let struct_impl = self.struct_impl(ctx, entries);
         let struct_ident = &ctx.struct_ident;
         impl_stream.extend(quote! {
@@ -270,6 +296,9 @@ pub trait TraitAttr {
 
             #[automatically_derived]
             impl #trait_path for #struct_ident {}
+
+            #[automatically_derived]
+            impl #entry_trait_path for #struct_ident {}
         });
         Ok(impl_stream)
     }

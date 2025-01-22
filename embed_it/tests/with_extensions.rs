@@ -8,14 +8,14 @@ use embed_it::Embed;
 pub struct Assets;
 
 mod tests {
-    use embed_it::{Content, EmbeddedPath, EntryPath};
+    use embed_it::{Content, EmbeddedPath, Entries, Entry, EntryPath, Index};
 
     use super::*;
 
     fn get_entry<D: Dir + ?Sized, T>(
         dir: &D,
         path: &str,
-        f: impl FnOnce(&Entry) -> Option<T>,
+        f: impl FnOnce(&Entry<DynDir, DynFile>) -> Option<T>,
         expected: &str,
     ) -> T {
         let entry = dir
@@ -24,12 +24,12 @@ mod tests {
         f(entry).unwrap_or_else(|| panic!("'{}' is not a {}", path, expected))
     }
 
-    fn get_file<D: Dir + ?Sized>(dir: &D, path: &str) -> &'static dyn File {
-        get_entry(dir, path, |e| e.file(), "file")
+    fn get_file<D: Dir + ?Sized>(dir: &D, path: &str) -> &'static dyn EntryFile {
+        get_entry(dir, path, |e| e.file().map(|f| f.into_file()), "file")
     }
 
-    fn get_dir<D: Dir + ?Sized>(dir: &D, path: &str) -> &'static dyn Dir {
-        get_entry(dir, path, |e| e.dir(), "directory")
+    fn get_dir<D: Dir + ?Sized>(dir: &D, path: &str) -> &'static dyn EntryDir {
+        get_entry(dir, path, |e| e.dir().map(|d| d.into_dir()), "directory")
     }
 
     #[test]
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn get() {
-        assert!(Assets.get("").is_none());
+        assert!(Assets.get("").is_some());
         assert!(Assets.get("hello").is_none());
 
         assert_eq!(get_file(&Assets, "hello.txt").content(), b"hello");

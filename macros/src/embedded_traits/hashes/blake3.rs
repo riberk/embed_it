@@ -42,10 +42,6 @@ impl HashAlg for Blake3HashAlg {
         parse_quote!(blake3_256)
     }
 
-    fn hash_len(&self) -> usize {
-        blake3::OUT_LEN
-    }
-
     fn make_hasher(&self) -> impl super::Hasher {
         Blake3Hasher(Hasher::new())
     }

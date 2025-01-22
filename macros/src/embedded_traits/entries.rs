@@ -1,10 +1,11 @@
+use embed_it_utils::entry::EntryKind;
 use quote::quote;
 use syn::parse_quote;
 
 use crate::{
-    embed::{EntryTokens, GenerateContext, IndexTokens},
+    embed::{attributes::embed::GenerationSettings, EntryTokens, GenerateContext, IndexTokens},
     embedded_traits::MakeEmbeddedTraitImplementationError,
-    fs::EntryKind,
+    utils::entry_ext::EntryKindExt,
 };
 
 use super::EmbeddedTrait;
@@ -12,17 +13,11 @@ use super::EmbeddedTrait;
 #[derive(Debug)]
 pub struct EntriesTrait;
 
-fn ident() -> syn::Ident {
-    parse_quote!(Entries)
-}
-
-fn method() -> syn::Ident {
-    parse_quote!(entries)
-}
-
 impl EmbeddedTrait for EntriesTrait {
-    fn path(&self, nesting: usize) -> syn::Path {
-        GenerateContext::make_nested_path(nesting, ident())
+    fn path(&self, level: usize, settings: &GenerationSettings) -> syn::Path {
+        let dir = settings.dir_entry_param(level);
+        let file = settings.file_entry_param(level);
+        parse_quote!(::embed_it::Entries<#dir, #file>)
     }
 
     fn impl_body(
@@ -37,22 +32,22 @@ impl EmbeddedTrait for EntriesTrait {
                 trait_id: self.id(),
             });
         }
-        let entry_path = &ctx.entry_path;
-        let method = method();
+        let entry_path = &ctx.settings.entry_path(ctx.level);
         let entries = entries.iter().fold(quote! {}, |mut entries, tokens| {
             let EntryTokens {
                 struct_path, entry, ..
             } = tokens;
             let kind_ident = entry.kind().ident();
+            let entry_struct_path = ctx.settings.entry_param_for(entry.kind(), ctx.level);
             entries.extend(quote! {
-                #entry_path::#kind_ident(&#struct_path),
+                ::embed_it::Entry::#kind_ident(#entry_struct_path(&#struct_path)),
             });
 
             entries
         });
 
         Ok(quote! {
-            fn #method(&self) -> &'static [#entry_path] {
+            fn entries(&self) -> &'static [#entry_path] {
                 const VALUE: &[#entry_path] = &[
                     #entries
                 ];
@@ -61,21 +56,11 @@ impl EmbeddedTrait for EntriesTrait {
         })
     }
 
-    fn definition(&self, entry_path: &syn::Ident) -> Option<proc_macro2::TokenStream> {
-        let ident = ident();
-        let method = method();
-        Some(quote! {
-            pub trait #ident {
-                fn #method(&self) -> &'static [#entry_path];
-            }
-        })
+    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
+        None
     }
 
     fn id(&self) -> &'static str {
         "Entries"
-    }
-
-    fn entry_impl_body(&self) -> proc_macro2::TokenStream {
-        panic!("Only dirs are supported to derive '{:?}'", self.id())
     }
 }

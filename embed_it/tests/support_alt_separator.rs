@@ -19,8 +19,7 @@ mod no_alt_sep {
 }
 
 mod tests {
-    use alt_sep::Index as AltIndex;
-    use no_alt_sep::Index as NoAltIndex;
+    use embed_it::Index;
 
     use super::*;
 

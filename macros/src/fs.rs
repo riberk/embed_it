@@ -6,9 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use darling::FromMeta;
+use embed_it_utils::entry::{Entry, EntryKind};
 use regex::{Captures, Regex};
-use syn::parse_quote;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
 use crate::{
@@ -17,41 +16,6 @@ use crate::{
 };
 
 const REPLACEMENT_IDENT_CHAR: char = '_';
-
-#[derive(Debug)]
-pub enum Entry<D, F = D> {
-    Dir(D),
-    File(F),
-}
-
-impl<D, F> Entry<D, F> {
-    pub fn kind(&self) -> EntryKind {
-        match self {
-            Entry::Dir(_) => EntryKind::Dir,
-            Entry::File(_) => EntryKind::File,
-        }
-    }
-
-    pub fn map<T, U>(
-        self,
-        map_dir: impl FnOnce(D) -> T,
-        map_file: impl FnOnce(F) -> U,
-    ) -> Entry<T, U> {
-        match self {
-            Entry::Dir(d) => Entry::Dir(map_dir(d)),
-            Entry::File(f) => Entry::File(map_file(f)),
-        }
-    }
-}
-
-impl<T> Entry<T, T> {
-    pub fn value(self) -> T {
-        match self {
-            Entry::Dir(v) => v,
-            Entry::File(v) => v,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct FsInfo {
@@ -67,25 +31,8 @@ impl FsInfo {
     pub fn metadata(&self) -> &std::fs::Metadata {
         &self.metadata
     }
-}
 
-impl Entry<FsInfo> {
-    pub fn path(&self) -> &EntryPath {
-        self.info().path()
-    }
-
-    pub fn metadata(&self) -> &std::fs::Metadata {
-        self.info().metadata()
-    }
-
-    pub fn info(&self) -> &FsInfo {
-        match self {
-            Entry::Dir(i) => i,
-            Entry::File(i) => i,
-        }
-    }
-
-    pub fn root(path: &Path) -> Result<Self, CreateRootEntryError> {
+    pub fn root_entry(path: &Path) -> Result<Entry<FsInfo>, CreateRootEntryError> {
         let metadata = path
             .metadata()
             .map_err(CreateRootEntryError::UnabeToReadMetadata)?;
@@ -99,7 +46,7 @@ impl Entry<FsInfo> {
             file_name: String::new(),
             file_stem: String::new(),
         };
-        Ok(Self::Dir(FsInfo { path, metadata }))
+        Ok(Entry::Dir(FsInfo { path, metadata }))
     }
 
     pub fn read(
@@ -107,7 +54,7 @@ impl Entry<FsInfo> {
         root: &Path,
         with_extension: WithExtension,
         names: &mut UniqueNames,
-    ) -> Result<Vec<Self>, ReadEntriesError> {
+    ) -> Result<Vec<Entry<FsInfo>>, ReadEntriesError> {
         let dir = read_dir(path).map_err(ReadEntriesError::UnabeToReadDir)?;
 
         let mut entries = Vec::new();
@@ -134,47 +81,18 @@ impl Entry<FsInfo> {
                     .map_err(ReadEntriesError::UnabeToReadMetadata)?;
                 let entry_path = EntryPath::normalize(path, root, with_extension, names)
                     .map_err(ReadEntriesError::UnableToNormalizeEntryPath)?;
-                Ok(kind.entry(entry_path, metadata))
+                Ok(Self::from_kind(kind, entry_path, metadata))
             })
             .collect::<Result<Vec<_>, ReadEntriesError>>()
     }
-}
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, FromMeta)]
-#[darling(rename_all = "lowercase")]
-pub enum EntryKind {
-    Dir,
-    #[default]
-    File,
-}
-
-impl PartialOrd for EntryKind {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for EntryKind {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match (self, other) {
-            (EntryKind::Dir, EntryKind::File) => std::cmp::Ordering::Less,
-            (EntryKind::File, EntryKind::Dir) => std::cmp::Ordering::Greater,
-            _ => std::cmp::Ordering::Equal,
-        }
-    }
-}
-
-impl EntryKind {
-    pub fn ident(&self) -> syn::Ident {
-        match self {
-            EntryKind::File => parse_quote!(File),
-            EntryKind::Dir => parse_quote!(Dir),
-        }
-    }
-
-    pub fn entry(&self, path: EntryPath, metadata: std::fs::Metadata) -> Entry<FsInfo> {
-        let info = FsInfo { path, metadata };
-        match self {
+    pub fn from_kind(
+        kind: EntryKind,
+        path: EntryPath,
+        metadata: std::fs::Metadata,
+    ) -> Entry<FsInfo> {
+        let info = Self { path, metadata };
+        match kind {
             EntryKind::Dir => Entry::Dir(info),
             EntryKind::File => Entry::File(info),
         }

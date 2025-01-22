@@ -7,7 +7,13 @@ use syn::Ident;
 use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
-        content::ContentTrait, debug::DebugTrait, hashes::ids::*, meta::MetaTrait, path::PathTrait,
+        compression::ids::{BROTLI, GZIP, ZSTD},
+        content::ContentTrait,
+        debug::DebugTrait,
+        hashes::ids::*,
+        meta::MetaTrait,
+        path::PathTrait,
+        str_content::StrContentTrait,
         EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr, EMBEDED_TRAITS,
     },
     main_trait_data::{MainTrait, MainTraitData},
@@ -16,6 +22,7 @@ use crate::{
 
 use super::{
     derive_default_traits::DeriveDefaultTraits,
+    entry::EntryStruct,
     field::{CreateFieldTraitsError, FieldAttr, FieldTraits},
 };
 
@@ -47,6 +54,9 @@ pub enum FileEmbeddedTrait {
 
     #[darling(rename = "Content")]
     Content,
+
+    #[darling(rename = "StrContent")]
+    StrContent,
 
     #[darling(rename = "Meta")]
     Meta,
@@ -86,6 +96,15 @@ pub enum FileEmbeddedTrait {
 
     #[darling(rename = "Blake3")]
     Blake3,
+
+    #[darling(rename = "Gzip")]
+    Gzip,
+
+    #[darling(rename = "Zstd")]
+    Zstd,
+
+    #[darling(rename = "Brotli")]
+    Brotli,
 }
 
 impl FileEmbeddedTrait {
@@ -93,6 +112,7 @@ impl FileEmbeddedTrait {
         match self {
             Self::Path => Ok(&PathTrait),
             Self::Content => Ok(&ContentTrait),
+            Self::StrContent => Ok(&StrContentTrait),
             Self::Meta => Ok(&MetaTrait),
             Self::Debug => Ok(&DebugTrait),
 
@@ -107,6 +127,12 @@ impl FileEmbeddedTrait {
             Self::Sha3_384 => EMBEDED_TRAITS.get_hash_trait(SHA3_384).map_err(Into::into),
             Self::Sha3_512 => EMBEDED_TRAITS.get_hash_trait(SHA3_512).map_err(Into::into),
             Self::Blake3 => EMBEDED_TRAITS.get_hash_trait(BLAKE3).map_err(Into::into),
+
+            Self::Gzip => EMBEDED_TRAITS.get_compress_trait(GZIP).map_err(Into::into),
+            Self::Zstd => EMBEDED_TRAITS.get_compress_trait(ZSTD).map_err(Into::into),
+            Self::Brotli => EMBEDED_TRAITS
+                .get_compress_trait(BROTLI)
+                .map_err(Into::into),
         }
     }
 }
@@ -240,6 +266,14 @@ impl TraitAttr for FileTrait {
 
     fn markers(&self) -> impl Iterator<Item = &'static dyn MarkerTrait> {
         self.markers.iter().copied()
+    }
+
+    fn entry_trait_ident<'a>(&self, entry: &'a EntryStruct) -> &'a Ident {
+        entry.file_trait_ident()
+    }
+
+    fn entry_struct_ident<'a>(&self, entry: &'a EntryStruct) -> &'a Ident {
+        entry.file_struct_ident()
     }
 
     fn struct_impl(&self, _: &GenerateContext<'_>, _: &[EntryTokens]) -> proc_macro2::TokenStream {

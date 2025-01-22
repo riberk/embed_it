@@ -4,13 +4,18 @@ use convert_case::{Case, Casing};
 use darling::FromMeta;
 use proc_macro2::Span;
 use quote::quote;
-use syn::Ident;
+use syn::{parse_quote, Ident, TypeParamBound};
 
 use crate::{
-    embed::{fix_path, pattern::EntryPattern, regex::EntryRegex, GenerateContext},
+    embed::{
+        bool_like_enum::BoolLikeEnum, fix_path, pattern::EntryPattern, regex::EntryRegex,
+        GenerateContext,
+    },
     embedded_traits::TraitAttr,
     fs::EntryPath,
 };
+
+use super::global_field::GlobalField;
 
 #[derive(Debug, FromMeta)]
 pub struct FieldAttr {
@@ -23,6 +28,9 @@ pub struct FieldAttr {
     name: syn::Ident,
 
     trait_name: Option<syn::Ident>,
+
+    #[darling(default, rename = "global")]
+    global: GlobalField,
 }
 
 #[derive(Debug)]
@@ -32,6 +40,7 @@ pub struct FieldTrait {
     factory: syn::Path,
     regex: Option<EntryRegex>,
     pattern: Option<EntryPattern>,
+    global: GlobalField,
 }
 
 impl FieldTrait {
@@ -47,6 +56,7 @@ impl FieldTrait {
             regex: field_attr.regex,
             pattern: field_attr.pattern,
             factory: field_attr.factory,
+            global: field_attr.global,
         }
     }
 
@@ -118,6 +128,13 @@ impl FieldTrait {
 
     pub fn field_ident(&self) -> &syn::Ident {
         &self.field_ident
+    }
+
+    pub fn global_bound(&self) -> Option<TypeParamBound> {
+        self.global.as_bool().then(|| {
+            let ident = self.trait_ident();
+            TypeParamBound::Trait(parse_quote!(#ident))
+        })
     }
 }
 

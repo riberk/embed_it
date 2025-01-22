@@ -1,27 +1,34 @@
 [package]
 name = "embed_it"
 
-edition = {workspace = true}
-rust-version = {workspace = true}
-license = {workspace = true}
-version = {workspace = true}
-authors = {workspace = true}
-repository = {workspace = true}
-description = {workspace = true}
-keywords = {workspace = true}
-categories = {workspace = true}
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+description = { workspace = true }
+keywords = { workspace = true }
+categories = { workspace = true }
 readme = "README.md"
 
 [dependencies]
 embed_it_macros = { version = "^3.0.0", path = "../macros" }
+embed_it_utils = { version = "^3.0.0", path = "../utils" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 hex-literal = { version = "0.4" }
 
 [features]
-md5 = ["embed_it_macros/md5"]
-sha1 = ["embed_it_macros/sha1"]
-sha2 = ["embed_it_macros/sha2"]
-sha3 = ["embed_it_macros/sha3"]
-blake3 = ["embed_it_macros/blake3"]
+any-hash = []
+md5 = ["any-hash", "embed_it_macros/md5"]
+sha1 = ["any-hash", "embed_it_macros/sha1"]
+sha2 = ["any-hash", "embed_it_macros/sha2"]
+sha3 = ["any-hash", "embed_it_macros/sha3"]
+blake3 = ["any-hash", "embed_it_macros/blake3"]
+
+any-compression = []
+brotli = ["any-compression", "embed_it_macros/brotli"]
+zstd = ["any-compression", "embed_it_macros/zstd"]
+gzip = ["any-compression", "embed_it_macros/gzip"]

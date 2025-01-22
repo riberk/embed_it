@@ -1,6 +1,9 @@
 use std::{collections::HashMap, fmt::Debug, fs::OpenOptions, io::BufReader};
 
+use embed_it_utils::entry::Entry;
 use quote::quote;
+
+use crate::embed::attributes::embed::GenerationSettings;
 
 use super::{EmbeddedTrait, MakeEmbeddedTraitImplementationError};
 
@@ -28,7 +31,6 @@ pub trait HashAlg: Send + Sync {
     fn id(&self) -> &'static str;
     fn trait_path(&self) -> syn::Path;
     fn trait_method(&self) -> syn::Ident;
-    fn hash_len(&self) -> usize;
     fn make_hasher(&self) -> impl Hasher;
 }
 
@@ -61,11 +63,11 @@ impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
         self.0.id()
     }
 
-    fn path(&self, _: usize) -> syn::Path {
+    fn path(&self, _: usize, _: &GenerationSettings) -> syn::Path {
         self.0.trait_path()
     }
 
-    fn definition(&self, _: &syn::Ident) -> Option<proc_macro2::TokenStream> {
+    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
         None
     }
 
@@ -76,10 +78,10 @@ impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
         _index: &[crate::embed::IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         let hash = match &ctx.entry {
-            crate::fs::Entry::Dir(_) => {
+            Entry::Dir(_) => {
                 let mut hasher = self.0.make_hasher();
                 for entry in entries {
-                    let name = &entry.entry.path().file_name;
+                    let name = &entry.entry.as_ref().value().path().file_name;
                     let entry_hash = entry.items.get::<Hashes>().and_then(|h| h.0.get(self.id()));
                     hasher.hash(name.as_bytes());
 
@@ -90,7 +92,7 @@ impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
 
                 hasher.finalize()
             }
-            crate::fs::Entry::File(info) => {
+            Entry::File(info) => {
                 let file_path = info.path().origin_path();
                 let file = OpenOptions::new()
                     .read(true)
@@ -131,18 +133,5 @@ impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
             .0
             .insert(self.id(), hash);
         Ok(res)
-    }
-
-    fn entry_impl_body(&self) -> proc_macro2::TokenStream {
-        let method = self.0.trait_method();
-        let hash_len = self.0.hash_len();
-        quote! {
-            fn #method(&self) -> &'static [u8; #hash_len] {
-                match self {
-                    Self::Dir(d) => d.#method(),
-                    Self::File(f) => f.#method(),
-                }
-            }
-        }
     }
 }

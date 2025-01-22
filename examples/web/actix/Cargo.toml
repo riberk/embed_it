@@ -1,0 +1,22 @@
+[workspace]
+
+[package]
+name = "actix_example"
+edition = "2021"
+rust-version = "1.81"
+
+[[bin]]
+name = "main-actix"
+path = "src/main.rs"
+
+[dependencies]
+embed_it = { path = "../../../embed_it", features = ["blake3", "zstd", "gzip", "brotli"] }
+
+actix-web = "4"
+hex = "0.4"
+tinytemplate = "1.2.1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+serde = { version = "1", features = ["derive"]}
+
+[features]

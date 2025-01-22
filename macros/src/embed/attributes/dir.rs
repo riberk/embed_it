@@ -260,6 +260,14 @@ impl TraitAttr for DirTrait {
         self.markers.iter().copied()
     }
 
+    fn entry_trait_ident<'a>(&self, entry: &'a super::entry::EntryStruct) -> &'a Ident {
+        entry.dir_trait_ident()
+    }
+
+    fn entry_struct_ident<'a>(&self, entry: &'a super::entry::EntryStruct) -> &'a Ident {
+        entry.dir_struct_ident()
+    }
+
     fn struct_impl(
         &self,
         ctx: &GenerateContext<'_>,

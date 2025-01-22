@@ -8,8 +8,7 @@ use embed_it::Embed;
 pub struct SameNames;
 
 mod tests {
-    use super::Entries;
-    use embed_it::EntryPath;
+    use embed_it::{Entries, EntryPath};
 
     use crate::SameNames;
 
@@ -18,7 +17,11 @@ mod tests {
         let paths = SameNames
             .entries()
             .iter()
-            .map(|e| e.path().relative_path_str())
+            .map(|e| {
+                e.map(|p| p.path(), |p| p.path())
+                    .value()
+                    .relative_path_str()
+            })
             .collect::<Vec<_>>();
         assert_eq!(
             paths,

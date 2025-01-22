@@ -8,12 +8,12 @@ use std::{borrow::Cow, collections::HashSet};
 use attributes::{
     dir::DirTrait,
     embed::{EmbedInput, GenerationSettings},
-    entry::EntryStruct,
     field::FieldTrait,
     file::FileTrait,
 };
 use convert_case::{Case, Casing};
 use darling::FromDeriveInput;
+use embed_it_utils::entry::{Entry, EntryKind};
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
@@ -25,7 +25,7 @@ use crate::{
     embedded_traits::{
         EmbeddedTrait, MakeEmbeddedTraitImplementationError, TraitAttr, EMBEDED_TRAITS,
     },
-    fs::{Entry, EntryKind, FsInfo, ReadEntriesError},
+    fs::{FsInfo, ReadEntriesError},
     utils::{anymap::AnyMap, unique_names::UniqueNames},
 };
 
@@ -46,16 +46,15 @@ pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream,
                 format!("Unable to build root struct: {e:#?}"),
             )
         })?;
-    let dir_trait_definition = settings.dir.definition();
-    let file_trait_definition = settings.file.definition();
+    let dir_trait_definition = settings.dir.definition(&settings);
+    let file_trait_definition = settings.file.definition(&settings);
 
     let field_traits_definition = settings
         .field_traits_definition()
         .map_err(|e| Error::new_spanned(main_struct_ident, e))?;
     let field_traits_implementation = context.field_traits_implementation();
 
-    let embedded_traits_definition =
-        generate_embedded_trait_definitions(&settings.dir, &settings.file, &settings.entry);
+    let embedded_traits_definition = generate_embedded_trait_definitions(&settings);
     let entry_implementation = settings.entry.implementation(&settings.dir, &settings.file);
 
     let dir_field_factory_definition = generate_factory_trait_definition(&settings.dir);
@@ -75,16 +74,13 @@ pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream,
     Ok(stream)
 }
 
-fn generate_embedded_trait_definitions(
-    dir_attr: &DirTrait,
-    file_attr: &FileTrait,
-    entry_attr: &EntryStruct,
-) -> proc_macro2::TokenStream {
+fn generate_embedded_trait_definitions(settings: &GenerationSettings) -> proc_macro2::TokenStream {
     let mut stream = proc_macro2::TokenStream::new();
 
-    let traits = dir_attr
+    let traits = settings
+        .dir
         .embedded_traits()
-        .chain(file_attr.embedded_traits())
+        .chain(settings.file.embedded_traits())
         .map(|v| v.id())
         .collect::<HashSet<_>>()
         .into_iter()
@@ -93,10 +89,8 @@ fn generate_embedded_trait_definitions(
                 .get(id)
                 .unwrap_or_else(|| panic!("Unable to find trait with id `{id}`"))
         });
-    let entry_path = entry_attr.ident();
-
     for embedded_trait in traits {
-        stream.extend(embedded_trait.definition(entry_path));
+        stream.extend(embedded_trait.definition(settings));
     }
 
     stream
@@ -198,9 +192,6 @@ pub struct GenerateContext<'a> {
     /// The identifier of the module and field (snake_case)
     pub mod_ident: syn::Ident,
 
-    /// The path of the `Entry` struct (including `super::super::...::$ident`)
-    pub entry_path: syn::Path,
-
     pub settings: &'a GenerationSettings,
 
     pub fields: Vec<&'a FieldTrait>,
@@ -225,7 +216,7 @@ impl<'a> GenerateContext<'a> {
 
     /// Creates the root-level context
     fn root(settings: &'a GenerationSettings) -> Result<Self, syn::Error> {
-        let entry = Entry::root(&settings.root).map_err(|e| {
+        let entry = FsInfo::root_entry(&settings.root).map_err(|e| {
             Error::new_spanned(
                 &settings.main_struct_ident,
                 format!(
@@ -238,17 +229,15 @@ impl<'a> GenerateContext<'a> {
         let mod_name = settings.main_struct_ident.to_string().to_case(Case::Snake);
         let mod_ident = Ident::new(&mod_name, Span::call_site());
 
-        let entry_path = Self::make_nested_path(0, settings.entry.ident().to_owned());
         Ok(Self {
             level: 0,
-            fields: settings.dir.fields().filter(entry.path()),
+            fields: settings.dir.fields().filter(entry.as_ref().value().path()),
             entry,
             names: UniqueNames::default(),
             struct_name: String::new(),
             struct_ident: settings.main_struct_ident.clone(),
             mod_name,
             mod_ident,
-            entry_path,
             settings,
             items: Default::default(),
             parents: Default::default(),
@@ -257,16 +246,16 @@ impl<'a> GenerateContext<'a> {
 
     /// Creates a context for a child of the current
     fn child(&self, entry: Entry<FsInfo>) -> Self {
-        let struct_name = entry.path().ident.to_case(Case::Pascal);
+        let struct_name = entry.as_ref().value().path().ident.to_case(Case::Pascal);
         let struct_ident = Ident::new_raw(&struct_name, Span::call_site());
-        let mod_name = entry.path().ident.to_case(Case::Snake);
+        let mod_name = entry.as_ref().value().path().ident.to_case(Case::Snake);
         let mod_ident = Ident::new_raw(&mod_name, Span::call_site());
         let level = self.level + 1;
-        let entry_path = Self::make_nested_path(level, self.settings.entry.ident().to_owned());
         let mut parents = self.parents.clone();
         parents.push(ParentTokens {
             struct_ident: self.struct_ident.clone(),
         });
+
         Self {
             level,
             fields: self
@@ -274,14 +263,13 @@ impl<'a> GenerateContext<'a> {
                 .trait_for(entry.kind())
                 .map(|v| v.fields(), |v| v.fields())
                 .value()
-                .filter(entry.path()),
+                .filter(entry.as_ref().value().path()),
             entry,
             names: UniqueNames::default(),
             struct_name,
             struct_ident,
             mod_name,
             mod_ident,
-            entry_path,
             settings: self.settings,
             items: Default::default(),
             parents,
@@ -291,7 +279,7 @@ impl<'a> GenerateContext<'a> {
     fn field_traits_implementation(&self) -> proc_macro2::TokenStream {
         self.fields
             .iter()
-            .filter(|t| t.is_match(self.entry.path()))
+            .filter(|t| t.is_match(self.entry.as_ref().value().path()))
             .fold(proc_macro2::TokenStream::new(), |mut accum, field| {
                 accum.extend(field.implementation(self));
                 accum
@@ -329,7 +317,7 @@ impl<'a> GenerateContext<'a> {
             }
         };
 
-        let index_relative_path = &self.entry.path().file_name;
+        let index_relative_path = &self.entry.as_ref().value().path().file_name;
         parent_index.extend(index.into_iter().map(|mut i| {
             let prev_path = i.struct_path;
             i.struct_path = parse_quote!(#mod_ident::#prev_path);
@@ -376,8 +364,8 @@ impl<'a> GenerateContext<'a> {
         entries: &mut Vec<EntryTokens>,
         index: &mut Vec<IndexTokens>,
     ) -> Result<proc_macro2::TokenStream, BuildDirError> {
-        let children = Entry::read(
-            self.entry.path().origin_path(),
+        let children = FsInfo::read(
+            self.entry.as_ref().value().path().origin_path(),
             &self.settings.root,
             self.settings.with_extension,
             &mut self.names,
@@ -553,6 +541,7 @@ mod tests {
                 dir(
                     trait_name = AssetsDir,
                     field_factory_trait_name = AssetsDirFieldFactory,
+                    derive_default_traits = false,
                     derive(Path),
                     derive(Entries),
                     derive(Index),
@@ -576,9 +565,11 @@ mod tests {
                 file(
                     trait_name = AssetsFile,
                     field_factory_trait_name = AssetsFileFieldFactory,
+                    derive_default_traits = false,
                     derive(Path),
                     derive(Meta),
                     derive(Content),
+                    derive(StrContent),
                     derive(Debug),
                     field(
                         name = as_str,
@@ -590,7 +581,10 @@ mod tests {
                     mark(ChildOf),
                 ),
                 entry(
-                    struct_name = AssetsEntry,
+                    dir_struct_name = DynDirStruct,
+                    file_struct_name = DynFileStruct,
+                    dir_trait_name = EntryDirTrait,
+                    file_trait_name = EntryFileStruct,
                 ),
                 with_extension = true,
 
@@ -669,7 +663,10 @@ mod tests {
         feature = "sha1",
         feature = "sha2",
         feature = "sha3",
-        feature = "blake3"
+        feature = "blake3",
+        feature = "gzip",
+        feature = "zstd",
+        feature = "brotli",
     ))]
     fn hashes() {
         let current_dir = tests_dir().join(fn_name!());
@@ -718,6 +715,9 @@ mod tests {
                     derive(Sha3_384),
                     derive(Sha3_512),
                     derive(Blake3),
+                    derive(Gzip),
+                    derive(Brotli),
+                    derive(Zstd),
                 ),
             )]
             pub struct Assets;
@@ -781,6 +781,33 @@ mod tests {
             pub struct Assets;
         });
 
+        impl_embed(input).print_to_std_out();
+    }
+
+    #[test]
+    #[cfg(feature = "zstd")]
+    fn zstd() {
+        let current_dir = tests_dir().join(fn_name!());
+        remove_and_create_dir_all(&current_dir);
+        create_file(current_dir.join("hello.txt"), b"hello");
+        create_file(current_dir.join("world.txt"), b"world");
+        create_file(current_dir.join("one.txt"), b"one");
+
+        let subdir1 = current_dir.join("one_txt");
+        create_dir_all(&subdir1);
+        create_file(subdir1.join("hello"), b"hello");
+        create_file(subdir1.join("world"), b"world");
+
+        let path = current_dir.to_str().unwrap();
+        let input = derive_input(quote! {
+            #[derive(embed_it::Embed)]
+            #[embed(
+                path = #path,
+                file(derive_default_traits = false, derive(Zstd)),
+                dir(derive_default_traits = false),
+            )]
+            pub struct Assets;
+        });
         impl_embed(input).print_to_std_out();
     }
 
