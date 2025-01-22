@@ -145,4 +145,18 @@ mod tests {
             "one_txt/world"
         );
     }
+
+    #[test]
+    fn direct_child_count() {
+        use embed_it::DirectChildCount;
+        assert_eq!(4, Assets.direct_child_count());
+        assert_eq!(2, Assets.one_txt().direct_child_count());
+    }
+
+    #[test]
+    fn recursive_child_count() {
+        use embed_it::RecursiveChildCount;
+        assert_eq!(6, Assets.recursive_child_count());
+        assert_eq!(2, Assets.one_txt().recursive_child_count());
+    }
 }

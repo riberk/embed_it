@@ -1,10 +1,12 @@
 pub mod content;
 pub mod debug;
+pub mod direct_child_count;
 pub mod entries;
 pub mod hashes;
 pub mod index;
 pub mod meta;
 pub mod path;
+pub mod recursive_child_count;
 
 use std::{
     borrow::Cow,
@@ -38,6 +40,8 @@ impl Default for AllEmbededTraits {
         map.add(&index::IndexTrait);
         map.add(&meta::MetaTrait);
         map.add(&path::PathTrait);
+        map.add(&direct_child_count::DirectChildCountTrait);
+        map.add(&recursive_child_count::RecursiveChildCountTrait);
 
         #[cfg(feature = "md5")]
         map.add(hashes::md5::MD5);

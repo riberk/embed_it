@@ -7,9 +7,10 @@ use syn::Ident;
 use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
-        debug::DebugTrait, entries::EntriesTrait, hashes::ids::*, index::IndexTrait,
-        meta::MetaTrait, path::PathTrait, EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr,
-        EMBEDED_TRAITS,
+        debug::DebugTrait, direct_child_count::DirectChildCountTrait, entries::EntriesTrait,
+        hashes::ids::*, index::IndexTrait, meta::MetaTrait, path::PathTrait,
+        recursive_child_count::RecursiveChildCountTrait, EmbeddedTrait, ResolveEmbeddedTraitError,
+        TraitAttr, EMBEDED_TRAITS,
     },
     main_trait_data::{MainTrait, MainTraitData},
 };
@@ -54,6 +55,12 @@ pub enum DirEmbeddedTrait {
     #[darling(rename = "Debug")]
     Debug,
 
+    #[darling(rename = "DirectChildCount")]
+    DirectChildCount,
+
+    #[darling(rename = "RecursiveChildCount")]
+    RecursiveChildCount,
+
     #[darling(rename = "Md5")]
     Md5,
 
@@ -96,6 +103,8 @@ impl DirEmbeddedTrait {
             Self::Index => Ok(&IndexTrait),
             Self::Meta => Ok(&MetaTrait),
             Self::Debug => Ok(&DebugTrait),
+            Self::DirectChildCount => Ok(&DirectChildCountTrait),
+            Self::RecursiveChildCount => Ok(&RecursiveChildCountTrait),
 
             Self::Md5 => EMBEDED_TRAITS.get_hash_trait(MD5).map_err(Into::into),
             Self::Sha1 => EMBEDED_TRAITS.get_hash_trait(SHA1).map_err(Into::into),
@@ -138,6 +147,8 @@ impl MainTrait for DirTrait {
         &IndexTrait,
         &MetaTrait,
         &PathTrait,
+        &DirectChildCountTrait,
+        &RecursiveChildCountTrait,
     ];
 
     const DEFAULT_TRAIT_NAME: &str = "Dir";

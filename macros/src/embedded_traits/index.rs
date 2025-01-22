@@ -95,6 +95,6 @@ impl EmbeddedTrait for IndexTrait {
     }
 
     fn entry_impl_body(&self) -> proc_macro2::TokenStream {
-        panic!("Only dirs are supported to derive '{:?}'", ident())
+        panic!("Only dirs are supported to derive '{:?}'", self.id())
     }
 }

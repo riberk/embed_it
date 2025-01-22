@@ -1,0 +1,18 @@
+[workspace]
+
+[package]
+name = "compilation_bench"
+edition = "2021"
+rust-version = "1.81"
+
+[dependencies]
+embed_it = { path = "../embed_it" }
+
+[features]
+bench-files = []
+bench-dirs = []
+bench-nested-dirs = []
+bench-nesting = []
+bench-lots-of-files = []
+bench-lots-of-dirs = []
+bench-lots-of-nesting-items = []
