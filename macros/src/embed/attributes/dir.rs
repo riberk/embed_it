@@ -13,6 +13,7 @@ use crate::{
         TraitAttr, EMBEDED_TRAITS,
     },
     main_trait_data::{MainTrait, MainTraitData},
+    marker_traits::{child_of::ChildOfMarker, MarkerTrait},
 };
 
 use super::{
@@ -36,6 +37,9 @@ pub struct DirAttr {
 
     #[darling(default, multiple, rename = "field")]
     fields: Vec<FieldAttr>,
+
+    #[darling(default, multiple, rename = "mark")]
+    markers: Vec<DirMarkerTrait>,
 }
 
 #[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
@@ -129,16 +133,32 @@ impl TryFrom<DirEmbeddedTrait> for &'static dyn EmbeddedTrait {
     }
 }
 
+#[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
+pub enum DirMarkerTrait {
+    #[darling(rename = "ChildOf")]
+    ChildOf,
+}
+
+impl From<DirMarkerTrait> for &'static dyn MarkerTrait {
+    fn from(value: DirMarkerTrait) -> Self {
+        match value {
+            DirMarkerTrait::ChildOf => &ChildOfMarker,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct DirTrait {
     embedded_traits: Vec<&'static dyn EmbeddedTrait>,
     trait_name: Ident,
     field_factory_trait_name: Ident,
     fields: FieldTraits,
+    markers: Vec<&'static dyn MarkerTrait>,
 }
 
 impl MainTrait for DirTrait {
     type Trait = DirEmbeddedTrait;
+    type Marker = DirMarkerTrait;
     type Error = ParseDirAttrError;
 
     const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] = &[
@@ -162,12 +182,14 @@ impl From<MainTraitData> for DirTrait {
             trait_name,
             field_factory_trait_name,
             fields,
+            markers,
         } = value;
         Self {
             embedded_traits,
             trait_name,
             field_factory_trait_name,
             fields,
+            markers,
         }
     }
 }
@@ -209,6 +231,7 @@ impl TryFrom<DirAttr> for DirTrait {
         Self::create(
             value.derive_default_traits,
             value.embedded_traits,
+            value.markers,
             value.trait_name,
             value.field_factory_trait_name,
             value.fields,
@@ -231,6 +254,10 @@ impl TraitAttr for DirTrait {
 
     fn fields(&self) -> &FieldTraits {
         &self.fields
+    }
+
+    fn markers(&self) -> impl Iterator<Item = &'static dyn MarkerTrait> {
+        self.markers.iter().copied()
     }
 
     fn struct_impl(

@@ -7,6 +7,7 @@ use crate::{
         field::{CreateFieldTraitsError, FieldAttr, FieldTraits},
     },
     embedded_traits::{EmbeddedTrait, EnabledTraits},
+    marker_traits::MarkerTrait,
 };
 
 pub struct MainTraitData {
@@ -14,10 +15,12 @@ pub struct MainTraitData {
     pub trait_name: Ident,
     pub field_factory_trait_name: Ident,
     pub fields: FieldTraits,
+    pub markers: Vec<&'static dyn MarkerTrait>,
 }
 
 pub trait MainTrait: Sized + 'static + From<MainTraitData> {
     type Trait: TryInto<&'static dyn EmbeddedTrait>;
+    type Marker: Into<&'static dyn MarkerTrait>;
     type Error: From<<Self::Trait as TryInto<&'static dyn EmbeddedTrait>>::Error>
         + From<CreateFieldTraitsError>;
     const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait];
@@ -27,6 +30,7 @@ pub trait MainTrait: Sized + 'static + From<MainTraitData> {
     fn create(
         derive_default_traits: DeriveDefaultTraits,
         embedded_traits: Vec<Self::Trait>,
+        markers: Vec<Self::Marker>,
         trait_name: Option<Ident>,
         field_factory_trait_name: Option<Ident>,
         fields: Vec<FieldAttr>,
@@ -46,6 +50,7 @@ pub trait MainTrait: Sized + 'static + From<MainTraitData> {
             embedded_traits: enabled_traits.into(),
             trait_name,
             field_factory_trait_name,
+            markers: markers.into_iter().map(Into::into).collect(),
         };
         Ok(res.into())
     }

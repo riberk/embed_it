@@ -6,6 +6,7 @@ pub(crate) mod embed;
 pub(crate) mod embedded_traits;
 pub(crate) mod fs;
 pub(crate) mod main_trait_data;
+pub(crate) mod marker_traits;
 pub(crate) mod utils;
 
 #[cfg(test)]

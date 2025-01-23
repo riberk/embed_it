@@ -206,6 +206,16 @@ pub struct GenerateContext<'a> {
     pub fields: Vec<&'a FieldTrait>,
 
     pub items: AnyMap,
+
+    /// The parents of the entry from the root to the direct
+    pub parents: Vec<ParentTokens>,
+}
+
+/// Parent of the entry
+#[derive(Debug, Clone)]
+pub struct ParentTokens {
+    /// The identifier of the parent struct
+    pub struct_ident: syn::Ident,
 }
 
 impl<'a> GenerateContext<'a> {
@@ -241,6 +251,7 @@ impl<'a> GenerateContext<'a> {
             entry_path,
             settings,
             items: Default::default(),
+            parents: Default::default(),
         })
     }
 
@@ -252,7 +263,10 @@ impl<'a> GenerateContext<'a> {
         let mod_ident = Ident::new_raw(&mod_name, Span::call_site());
         let level = self.level + 1;
         let entry_path = Self::make_nested_path(level, self.settings.entry.ident().to_owned());
-
+        let mut parents = self.parents.clone();
+        parents.push(ParentTokens {
+            struct_ident: self.struct_ident.clone(),
+        });
         Self {
             level,
             fields: self
@@ -270,6 +284,7 @@ impl<'a> GenerateContext<'a> {
             entry_path,
             settings: self.settings,
             items: Default::default(),
+            parents,
         }
     }
 
@@ -556,6 +571,7 @@ mod tests {
                         factory = ::other::Children,
                         regex = "",
                     ),
+                    mark(ChildOf),
                 ),
                 file(
                     trait_name = AssetsFile,
@@ -571,6 +587,7 @@ mod tests {
                         pattern = "*.txt",
                         regex = ".+",
                     ),
+                    mark(ChildOf),
                 ),
                 entry(
                     struct_name = AssetsEntry,

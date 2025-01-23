@@ -6,7 +6,7 @@ mod traits;
 pub use embed_it_macros::Embed;
 pub use embedded_path::EmbeddedPath;
 pub use metadata::Metadata;
-pub use traits::{Content, DirectChildCount, EntryPath, Meta, RecursiveChildCount};
+pub use traits::{ChildOf, Content, DirectChildCount, EntryPath, Meta, RecursiveChildCount};
 
 #[cfg(feature = "md5")]
 pub use traits::Md5Hash;

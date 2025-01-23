@@ -27,6 +27,7 @@ use crate::{
         EntryTokens, GenerateContext, IndexTokens,
     },
     fs::EntryKind,
+    marker_traits::MarkerTrait,
 };
 
 pub struct AllEmbededTraits(HashMap<&'static str, &'static dyn EmbeddedTrait>);
@@ -207,6 +208,8 @@ pub trait TraitAttr {
 
     fn fields(&self) -> &FieldTraits;
 
+    fn markers(&self) -> impl Iterator<Item = &'static dyn MarkerTrait>;
+
     fn struct_impl(
         &self,
         ctx: &GenerateContext<'_>,
@@ -250,8 +253,13 @@ pub trait TraitAttr {
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         let trait_ident = self.trait_ident();
         let mut impl_stream = quote! {};
+
         for t in self.embedded_traits() {
             impl_stream.extend(t.implementation(ctx, entries, index)?);
+        }
+
+        for m in self.markers() {
+            impl_stream.extend(m.implementation(ctx, entries, index));
         }
 
         let trait_path = ctx.make_level_path(trait_ident.to_owned());

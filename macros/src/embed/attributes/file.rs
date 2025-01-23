@@ -11,6 +11,7 @@ use crate::{
         EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr, EMBEDED_TRAITS,
     },
     main_trait_data::{MainTrait, MainTraitData},
+    marker_traits::{child_of::ChildOfMarker, MarkerTrait},
 };
 
 use super::{
@@ -34,6 +35,9 @@ pub struct FileAttr {
 
     #[darling(default, multiple, rename = "field")]
     fields: Vec<FieldAttr>,
+
+    #[darling(default, multiple, rename = "mark")]
+    markers: Vec<FileMarkerTrait>,
 }
 
 #[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
@@ -115,10 +119,25 @@ impl TryFrom<FileEmbeddedTrait> for &'static dyn EmbeddedTrait {
     }
 }
 
+#[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
+pub enum FileMarkerTrait {
+    #[darling(rename = "ChildOf")]
+    ChildOf,
+}
+
+impl From<FileMarkerTrait> for &'static dyn MarkerTrait {
+    fn from(value: FileMarkerTrait) -> Self {
+        match value {
+            FileMarkerTrait::ChildOf => &ChildOfMarker,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct FileTrait {
     fields: FieldTraits,
     embedded_traits: Vec<&'static dyn EmbeddedTrait>,
+    markers: Vec<&'static dyn MarkerTrait>,
     trait_name: Ident,
     field_factory_trait_name: Ident,
 }
@@ -157,6 +176,8 @@ impl Display for ParseFileAttrError {
 impl MainTrait for FileTrait {
     type Trait = FileEmbeddedTrait;
 
+    type Marker = FileMarkerTrait;
+
     type Error = ParseFileAttrError;
 
     const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] =
@@ -174,12 +195,14 @@ impl From<MainTraitData> for FileTrait {
             trait_name,
             field_factory_trait_name,
             fields,
+            markers,
         } = value;
         Self {
             fields,
             embedded_traits,
             trait_name,
             field_factory_trait_name,
+            markers,
         }
     }
 }
@@ -190,6 +213,7 @@ impl TryFrom<FileAttr> for FileTrait {
         Self::create(
             value.derive_default_traits,
             value.embedded_traits,
+            value.markers,
             value.trait_name,
             value.field_factory_trait_name,
             value.fields,
@@ -212,6 +236,10 @@ impl TraitAttr for FileTrait {
 
     fn fields(&self) -> &FieldTraits {
         &self.fields
+    }
+
+    fn markers(&self) -> impl Iterator<Item = &'static dyn MarkerTrait> {
+        self.markers.iter().copied()
     }
 
     fn struct_impl(&self, _: &GenerateContext<'_>, _: &[EntryTokens]) -> proc_macro2::TokenStream {
