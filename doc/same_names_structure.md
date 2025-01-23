@@ -1,6 +1,0 @@
-- same+txt/
-- same.txt/
-- same_txt/
-- same*txt
-- same-txt
-- same?txt

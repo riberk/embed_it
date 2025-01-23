@@ -1,6 +1,0 @@
-- one_txt/
-  - hello
-  - world
-- hello.txt
-- one.txt
-- world.txt
