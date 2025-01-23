@@ -106,3 +106,18 @@ mod bench_lots_of_nesting_items {
         super::print_entries_count(Assets.recursive_child_count());
     }
 }
+
+#[cfg(feature = "rust-analyzer")]
+mod rust_analyzer {
+    use embed_it::Embed;
+
+    #[derive(Embed)]
+    #[embed(path = "$RUST_ANALYZER")]
+    pub struct Assets;
+
+    #[test]
+    fn test() {
+        use embed_it::RecursiveChildCount;
+        super::print_entries_count(Assets.recursive_child_count());
+    }
+}

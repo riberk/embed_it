@@ -12,18 +12,22 @@ fn main() {
         .filter_map(|(name, _)| name.strip_prefix("CARGO_FEATURE_").map(|v| v.to_owned()))
     {
         let cfg = feature_config(&feature);
-        let path = Path::new(&out_dir).join(&feature);
-        let path_str = path.to_str().unwrap();
-        let path_var = feature.as_str();
-        create_dir(&path);
-        create_tree(
-            &path,
-            cfg.depth,
-            cfg.directories_per_level,
-            cfg.files_per_directory,
-        );
-        println!("cargo::rustc-env={path_var}={path_str}")
+        process(&out_dir, &cfg, &feature);
     }
+}
+
+fn process(out_dir: &str, cfg: &Config, name: &str) {
+    let path = Path::new(out_dir).join(name);
+    let path_str = path.to_str().unwrap();
+    let path_var = name;
+    create_dir(&path);
+    create_tree(
+        &path,
+        cfg.depth,
+        cfg.directories_per_level,
+        cfg.files_per_directory,
+    );
+    println!("cargo::rustc-env={path_var}={path_str}")
 }
 
 fn feature_config(feature: &str) -> Config {
@@ -63,7 +67,11 @@ fn feature_config(feature: &str) -> Config {
             directories_per_level: 10,
             files_per_directory: 5,
         },
-        
+        "RUST_ANALYZER" => Config {
+            depth: 1,
+            directories_per_level: 5,
+            files_per_directory: 1000,
+        },
         _ => {
             panic!("Unknonw feature '{feature}'")
         }

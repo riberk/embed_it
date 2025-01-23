@@ -3,9 +3,9 @@
 [![crates.io](https://img.shields.io/crates/v/embed_it.svg)](https://crates.io/crates/embed_it)
 [![Coverage](https://riberk.github.io/embed_it/badges/coverage.svg)](https://riberk.github.io/embed_it/coverage_report/index.html)
 
-Include any directory as a struct and the entire tree will be produced into rust structures and traits
+Include any directory as a struct, and the entire tree will be generated as Rust structures and traits
 
-Imagine a project structure like that
+Imagine a project structure like this:
 
 - **assets/**
   - **one_txt/**
@@ -17,7 +17,7 @@ Imagine a project structure like that
 - src
 - Cargo.toml
 
-You can use a macro to expand it into rust code:
+You can use a macro to expand it into Rust code:
 
 ```rust
 use embed_it::Embed;
@@ -53,13 +53,30 @@ pub struct Assets;
         b"hello"
     );
 
-    // we can use win-style paths due to `support_alt_separator` attribute
+    // We can use Windows-style paths due to the `support_alt_separator` attribute
     assert_eq!(
         Assets.get("one_txt\\hello").unwrap().file().unwrap().content(),
         b"hello"
     );
 # }
 ```
+
+## Known issues
+
+### Long compilation time with many files
+If your directory contains a very large number of files, the compile time can increase significantly.
+
+**Possible solution**: Move those assets into a separate crate. This way, the main build won’t be slowed down by the large amount of embedded content, and changes in the asset crate won’t force a full rebuild of your main project.
+
+### `macro invocation exceeds token limit` error in rust-analyzer
+When there are thousands of files/directories (around 5000 or more), rust-analyzer can fail with the error that the macro exceeds the token limit. This is due to a hard-coded limit in rust-analyzer that is not currently configurable [tracking issue](https://github.com/rust-lang/rust-analyzer/issues/10855).
+
+**Possible workaround**: Split the assets into multiple directories and generate several smaller embedded structures, each containing fewer files, to reduce the total token count.
+
+### Intellisense issues in RustRover
+In JetBrains RustRover, intellisense might stop working when the number of files/directories reaches a similar high threshold. The exact cause and any permanent solution are currently unclear.
+
+**Possible workaround**: As above, splitting assets into multiple directories with separate macro invocations may help avoid hitting internal limits.
 
 ## Fields
 
@@ -70,31 +87,31 @@ The main attribute
 | field                    | type             | multiple | required | default                | description                                                                                                                                                                                                                                                                                 |
 |--------------------------|------------------|----------|----------|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `path`                   | `String`         | false    | true     | -                      | The path to the directory with assets. It may contain [compile-time environment variables](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates) (or user defined) in format `$CARGO_MANIFEST_DIR` or `${CARGO_MANIFEST_DIR}`   |
-| `dir`                    | `DirAttr`        | false    | false    | `DirAttr::default()`   | Change settings, how `Dir`-trait and its implementations will be generated. See more in [Dir Attr](#DirAttr) section                                                                                                                                                                        |
-| `file`                   | `FileAttr`       | false    | false    | `FileAttr::default()`  | Change settings, how  `File` -trait and its implementations will be generated. See more in [File Attr](#FileAttr) section                                                                                                                                                                   |
-| `entry`                  | `EntryAttr`      | false    | false    | `EntryAttr::default()` | Change settings, how  `Entry` -struct and its implementations will be generated. See more in [Entry Attr](#EntryAttr) section                                                                                                                                                               |
-| `with_extension`         | `bool`           | false    | false    | `false`                | Use file extensions for method and struct name                                                                                                                                                                                                                                              |
-| `support_alt_separator`  | `bool`           | false    | false    | `false`                | If true, getting value from directory's `Index` replaces `\` with `/`. In the other words you can use windows-style paths with get-method like `Assets.get("a\\b\\c.txt")`                                                                                                                  |
+| `dir`                    | `DirAttr`        | false    | false    | `DirAttr::default()`   | Changes the setting for how the `Dir`trait and its implementations are generated. See more in the [Dir Attr](#DirAttr) section                                                                                                                                                                        |
+| `file`                   | `FileAttr`       | false    | false    | `FileAttr::default()`  | Changes the setting for how the `File` trait and its implementations are generated. See more in the [File Attr](#FileAttr) section                                                                                                                                                                   |
+| `entry`                  | `EntryAttr`      | false    | false    | `EntryAttr::default()` | Changes the setting for how the `Entry` struct and its implementations are generated. See more in the [Entry Attr](#EntryAttr) section                                                                                                                                                               |
+| `with_extension`         | `bool`           | false    | false    | `false`                | Use file extensions for method and struct names                                                                                                                                                                                                                                              |
+| `support_alt_separator`  | `bool`           | false    | false    | `false`                | If true, getting a value from the directory's `Index` replaces `\` with `/`. In other words, you can use Windows-style paths with the `get` method, for example, `Assets.get("a\\b\\c.txt")`                                                                                                                  |
 
 ### <a name="DirAttr"></a> DirAttr
 
 | field                      | type             | multiple | required | default                                      | description                                                                                                                                                                      |
 |----------------------------|------------------|----------|----------|----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `derive_default_traits`    | `bool`           | false    | false    | `true`                                       | Will default traits be derived (see `derive` row in the table)                                                                                                                   |
-| `trait_name`               | `Ident`          | false    | false    | `Dir`                                        | What trait name will be used for a directory                                                                                                                                     |
-| `field_factory_trait_name` | `Ident`          | false    | false    | `DirFieldFactory`                            | What trait name will be used for a directory field factory                                                                                                                       |
-| `derive`                   | `Vec<DirTrait>`  | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug` </br> `DirectChildCount`, `RecursiveChildCount` | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
-| `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                                     | Add additional "fields" for dir. See more in [Field Attr](#FieldAttr)                                                                                                            |
+| `derive_default_traits`    | `bool`           | false    | false    | `true`                                       | Determines whether default traits will be derived (see the `derive` row in the table)                                                                                                                   |
+| `trait_name`               | `Ident`          | false    | false    | `Dir`                                        | Specifies the trait name that will be used for a directory                                                                                                                                     |
+| `field_factory_trait_name` | `Ident`          | false    | false    | `DirFieldFactory`                            | Specifies the trait name that will be used for a directory field factory                                                                                                                       |
+| `derive`                   | `Vec<DirTrait>`  | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug` </br> `DirectChildCount`, `RecursiveChildCount` | What traits will be derived for every directory and what bounds will be set for the `Dir` trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
+| `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                                     | Adds additional fields for a directory. See more in the [Field Attr](#FieldAttr) section                                                                                                            |
 
 ### <a name="FileAttr"></a> FileAttr
 
 | field                      | type             | multiple | required | default                            | description                                                                                                                                                                      |
 |----------------------------|------------------|----------|----------|------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `derive_default_traits`    | `bool`           | false    | false    | `true`                             | Will default traits be derived (see `derive` row in the table)                                                                                                                   |
+| `derive_default_traits`    | `bool`           | false    | false    | `true`                             | Determines whether default traits will be derived (see the `derive` row in the table)                                                                                                                   |
 | `trait_name`               | `Ident`          | false    | false    | `File`                             | What trait name will be used for a directory                                                                                                                                     |
 | `field_factory_trait_name` | `Ident`          | false    | false    | `FileFieldFactory`                 | What trait name will be used for a directory field factory                                                                                                                       |
 | `derive`                   | `Vec<DirTrait>`  | true     | false    | `Path`, `Meta`, `Debug`, `Content` | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
-| `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                           | Add additional "fields" for dir. See more in [Field Attr](#FieldAttr)                                                                                                            |
+| `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                           | Adds additional fields for a file. See more in the [Field Attr](#FieldAttr) section                                                                                                            |
 
 ### <a name="EmbeddedTraits_list"></a> EmbeddedTraits list
 
@@ -122,11 +139,11 @@ For each `field` defined in macros a special trait will be generated inside the 
 
 | field                      | type            | multiple | required | default                                     | description                                                                                                                                      |
 |----------------------------|-----------------|----------|----------|---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `name`                     | `Ident`         | false    | true     |                                             | The name of the metod, that will be used by the trait                                                                                            |
+| `name`                     | `Ident`         | false    | true     |                                             | The name of the method that will be used by the trait                                                                                            |
 | `factory`                  | `syn::Path`     | false    | true     |                                             | The path to a factory, that will be used to create an instance of the field and to determine a field type                                        |
 | `trait_name`               | `Option<Ident>` | false    | false    | `{name.to_pascal_case()}Field`              | The name of the field trait                                                                                                                      |
-| `regex`                    | `Option<String>`| false    | false    | `None`                                      | Regular expression to match a fs entry path. The trait will be implemented for a struct only if the regex matches                                |
-| `pattern`                  | `Option<String>`| false    | false    | `None`                                      | Glob pattern to match a fs entry path. The trait will be implemented for a struct only if the pattern matches                                    |
+| `regex`                    | `Option<String>`| false    | false    | `None`                                      | Regular expression to match a fs entry path. The trait is implemented for a struct only if the regex matches                                |
+| `pattern`                  | `Option<String>`| false    | false    | `None`                                      | Glob pattern to match a fs entry path. The trait is implemented for a struct only if the pattern matches                                    |
 
 ```rust
 use std::str::from_utf8;
@@ -220,7 +237,7 @@ assert_eq!(Assets.root_children(), &vec!["one_txt", "hello.txt", "one.txt", "wor
 
 ### <a name="HashTraits"></a> Hash traits
 
-You can use any combination of hash traits on `dir` and `file`. For a file it hashes it's content, for a dir it hashes every entry name and entry hash if applicable (order - (dirs > files) then by path). Hash stores as a constant array of bytes;
+You can use any combination of hash traits on `dir` and `file`. For a file, it hashes its content; for a directory, it hashes every entry name and entry hash if applicable (order — directories first, then files, and finally by path). The hash is stored as a constant array of bytes.
 
 | Derive     | Required feature | Trait                     | 
 |------------|------------------|---------------------------| 
@@ -236,7 +253,7 @@ You can use any combination of hash traits on `dir` and `file`. For a file it ha
 | `Sha3_512` | `sha3`           | [`crate::Sha3_512Hash`]   | 
 | `Blake3`   | `blake3`         | [`crate::Blake3_256Hash`] | 
 
-The example below compiles only if all hash features from table above enabled;
+The example below compiles only if all hash features listed in the table above are enabled.
 
 ```rust
 #[cfg(
@@ -409,7 +426,7 @@ use embed_it::Embed;
         // struct name for `Entry` (default `Entry`).
         struct_name = AssetsEntry,
     ),
-    // if true, macros will be use extension as a part of `StructName`s and `methos_name`s
+    // if true, the macro will use the extension as a part of `StructName`s and `method_name`s
     // e.g. hello.txt turns into HelloTxt/hello_txt() if with_extension = true, and Hello/hello() if with_extension = false
     // default is false
     with_extension = true,
@@ -463,18 +480,18 @@ impl AssetsFileFieldFactory for AsStr {
 # }
 ```
 
-## How does fs-entry's name turn into rust identifiers?
+## How does fs-entry's name turn into Rust identifiers?
 Each name will be processed and any unsuitable symbol will be replaced with `_`. This might cause a problem with a level uniqueness of identifiers, for example, all of the entry names below turn into `one_txt`.
 - one+txt
 - one-txt
 - one_txt
 
-The macros handles the problem and generates methods with a number suffix. In that case it would be 
+The macro handles this problem and generates methods with a numeric suffix. In that case it would be 
 - one+txt - `one_txt()`
 - one-txt - `one_txt_1()`
 - one_txt - `one_txt_2()`
 
-Entries sorted unambiguous by entry kind (dir/file, dirs first) and then by path.
+Entries are sorted unambiguously by entry kind (directories first, then files) and subsequently by path.
 
 This works for struct names in the same way
 
@@ -485,33 +502,33 @@ This works for struct names in the same way
 
 ## What code will be generated by macros
 
-1. Macros generates all embedded trait definitions, like `Entries` and `Index` which depend on a context
-2. Macros generates definitions for traits `Dir` and `File` where each is a compilation of previous step suitable traits
-3. Macros generates enum for `Entry` (`Dir(&'static dyn Dir)`/`File(&'static dyn File)`).
-4. Macros implements intersection of `Dir` and `File` traits for `Entry`
-5. Macros generates traits for `FileFieldFactory` and `DirFieldFactory` with bounds to `File`/`Dir` traits for the argument of the method
-6. Macros generates traits for each `field`
-7. For any entry starting from the root
-    * For any kind of an entry implements requested suitable embedded traits (like `Content`, `Path`, `Metadata`, `Entries`, `Index`, etc.)
-    * For any kind of an entry implements traits for all suitable fields from the step 6
-    * For a directory recursively generate code for an each child
+1. The macro generates all embedded trait definitions, like `Entries` and `Index` which depend on a context
+2. The macro generates definitions for traits `Dir` and `File` where each is a compilation of previous step suitable traits
+3. The macro generates enum for the `Entry` (`Dir(&'static dyn Dir)`/`File(&'static dyn File)`).
+4. The macro implements the intersection of the `Dir` and `File` traits for the `Entry` struct
+5. The macro generates traits for `FileFieldFactory` and `DirFieldFactory` with bounds to `File`/`Dir` traits for the argument of the method
+6. The macro generates traits for each `field`
+7. For any entry starting from the root:
+    * For each type of entry, the macro implements the requested suitable embedded traits (like `Content`, `Path`, `Metadata`, `Entries`, `Index`, etc.)
+    * For each type of entry, the macro implements traits for all suitable fields from the step 6
+    * For a directory, the macro recursively generates code for each child
 
 
-**NOTICE:** All instances are static and the staticity is achieved 
+**NOTE:** All instances are static, and this staticness is achieved 
 
-* by `const` for any const things, like file content or file path
+* by `const` for any const items, like file content or file path
 ```rust
 struct Hello;
 #[automatically_derived]
 impl ::embed_it::Content for Hello {
     fn content(&self) -> &'static [u8] {
-        const VALUE: &[u8] = b"hello"; // in real world it will be `include_bytes!(...)`
+        const VALUE: &[u8] = b"hello"; // in a real-world scenario, it would be `include_bytes!(...)`
         VALUE
     }
 }
 ```
 
-* by `static` `LazyLock` for non-const things, which can be created without a context
+* by a `static` `LazyLock` for non-const items, which can be created without a context
 ```rust
 pub struct Assets;
 
@@ -547,7 +564,7 @@ impl Index for Assets {
 
 ```
 
-* by `static` `OnceLock` for non-const things, wich requires a context (like additional `field`s)
+* by a `static` `OnceLock` for non-const items, which require a context (like additional `field`s)
 
 ```rust
 
@@ -562,7 +579,7 @@ impl FileFieldFactory for AsStr {
 
 pub struct Assets;
 
-// auto-generetad
+// auto-generated
 pub trait Dir: Send + Sync {}
 pub trait File: Send + Sync + ::embed_it::Content {}
 
