@@ -1,7 +1,6 @@
 use std::fmt::Display;
 use std::path::PathBuf;
 
-use crate::embedded_traits::TraitAttr;
 use crate::fs::{expand_and_canonicalize, get_env, Entry, EntryKind, ExpandPathError};
 
 use super::dir::{DirAttr, DirTrait, ParseDirAttrError};

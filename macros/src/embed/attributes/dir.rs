@@ -7,12 +7,9 @@ use syn::Ident;
 use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
-        debug::DebugTrait, direct_child_count::DirectChildCountTrait, entries::EntriesTrait,
-        hashes::ids::*, index::IndexTrait, meta::MetaTrait, path::PathTrait,
-        recursive_child_count::RecursiveChildCountTrait, EmbeddedTrait, ResolveEmbeddedTraitError,
-        TraitAttr, EMBEDED_TRAITS,
+        debug::DebugTrait, direct_child_count::DirectChildCountTrait, enabled_trait::EnabledTrait, entries::EntriesTrait, feature_disabled::FeatureDisabled, hashes::HashTraitFactory, index::IndexTrait, main_trait::MainTrait, meta::MetaTrait, path::PathTrait, recursive_child_count::RecursiveChildCountTrait, EmbeddedTrait
     },
-    main_trait_data::{MainTrait, MainTraitData},
+    main_trait_data::{MainTraitData, MainTraitFactory},
     marker_traits::{child_of::ChildOfMarker, MarkerTrait},
 };
 
@@ -42,7 +39,7 @@ pub struct DirAttr {
     markers: Vec<DirMarkerTrait>,
 }
 
-#[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq, derive_more::Display)]
 pub enum DirEmbeddedTrait {
     #[darling(rename = "Path")]
     Path,
@@ -96,37 +93,48 @@ pub enum DirEmbeddedTrait {
     Sha3_512,
 
     #[darling(rename = "Blake3")]
-    Blake3,
+    Blake3(usize),
+}
+
+#[derive(Debug, derive_more::Display, derive_more::Error)]
+pub enum MapToEmbeddedTraitError {
+    #[display("unable to use {}: {}", self.0, self.1)]
+    FeatureDisabledFor(DirEmbeddedTrait, #[error(source)] FeatureDisabled),
 }
 
 impl DirEmbeddedTrait {
-    fn to_embedded_trait(self) -> Result<&'static dyn EmbeddedTrait, ResolveEmbeddedTraitError> {
-        match self {
-            Self::Path => Ok(&PathTrait),
-            Self::Entries => Ok(&EntriesTrait),
-            Self::Index => Ok(&IndexTrait),
-            Self::Meta => Ok(&MetaTrait),
-            Self::Debug => Ok(&DebugTrait),
-            Self::DirectChildCount => Ok(&DirectChildCountTrait),
-            Self::RecursiveChildCount => Ok(&RecursiveChildCountTrait),
 
-            Self::Md5 => EMBEDED_TRAITS.get_hash_trait(MD5).map_err(Into::into),
-            Self::Sha1 => EMBEDED_TRAITS.get_hash_trait(SHA1).map_err(Into::into),
-            Self::Sha2_224 => EMBEDED_TRAITS.get_hash_trait(SHA2_224).map_err(Into::into),
-            Self::Sha2_256 => EMBEDED_TRAITS.get_hash_trait(SHA2_256).map_err(Into::into),
-            Self::Sha2_384 => EMBEDED_TRAITS.get_hash_trait(SHA2_384).map_err(Into::into),
-            Self::Sha2_512 => EMBEDED_TRAITS.get_hash_trait(SHA2_512).map_err(Into::into),
-            Self::Sha3_224 => EMBEDED_TRAITS.get_hash_trait(SHA3_224).map_err(Into::into),
-            Self::Sha3_256 => EMBEDED_TRAITS.get_hash_trait(SHA3_256).map_err(Into::into),
-            Self::Sha3_384 => EMBEDED_TRAITS.get_hash_trait(SHA3_384).map_err(Into::into),
-            Self::Sha3_512 => EMBEDED_TRAITS.get_hash_trait(SHA3_512).map_err(Into::into),
-            Self::Blake3 => EMBEDED_TRAITS.get_hash_trait(BLAKE3).map_err(Into::into),
+    fn hash_trait(self, make: impl Fn() -> Result<EnabledTrait, FeatureDisabled>) -> Result<EnabledTrait, MapToEmbeddedTraitError> {
+        make().map_err(|e| MapToEmbeddedTraitError::FeatureDisabledFor(self, e))
+    }
+
+    fn to_embedded_trait(self) -> Result<EnabledTrait, MapToEmbeddedTraitError> {
+        match self {
+            Self::Path => Ok(Box::new(PathTrait)),
+            Self::Entries => Ok(Box::new(EntriesTrait)),
+            Self::Index => Ok(Box::new(IndexTrait)),
+            Self::Meta => Ok(Box::new(MetaTrait)),
+            Self::Debug => Ok(Box::new(DebugTrait)),
+            Self::DirectChildCount => Ok(Box::new(DirectChildCountTrait)),
+            Self::RecursiveChildCount => Ok(Box::new(RecursiveChildCountTrait)),
+
+            Self::Md5 => self.hash_trait(|| HashTraitFactory.md5()),
+            Self::Sha1 => self.hash_trait(|| HashTraitFactory.sha1()),
+            Self::Sha2_224 => self.hash_trait(|| HashTraitFactory.sha2_224()),
+            Self::Sha2_256 => self.hash_trait(|| HashTraitFactory.sha2_256()),
+            Self::Sha2_384 => self.hash_trait(|| HashTraitFactory.sha2_384()),
+            Self::Sha2_512 => self.hash_trait(|| HashTraitFactory.sha2_512()),
+            Self::Sha3_224 => self.hash_trait(|| HashTraitFactory.sha3_224()),
+            Self::Sha3_256 => self.hash_trait(|| HashTraitFactory.sha3_256()),
+            Self::Sha3_384 => self.hash_trait(|| HashTraitFactory.sha3_384()),
+            Self::Sha3_512 => self.hash_trait(|| HashTraitFactory.sha3_512()),
+            Self::Blake3(len) => self.hash_trait(|| HashTraitFactory.blake3(len)),
         }
     }
 }
 
-impl TryFrom<DirEmbeddedTrait> for &'static dyn EmbeddedTrait {
-    type Error = ResolveEmbeddedTraitError;
+impl TryFrom<DirEmbeddedTrait> for EnabledTrait {
+    type Error = MapToEmbeddedTraitError;
 
     fn try_from(value: DirEmbeddedTrait) -> Result<Self, Self::Error> {
         value.to_embedded_trait()
@@ -139,40 +147,44 @@ pub enum DirMarkerTrait {
     ChildOf,
 }
 
-impl From<DirMarkerTrait> for &'static dyn MarkerTrait {
+impl From<DirMarkerTrait> for Box<dyn MarkerTrait> {
     fn from(value: DirMarkerTrait) -> Self {
         match value {
-            DirMarkerTrait::ChildOf => &ChildOfMarker,
+            DirMarkerTrait::ChildOf => Box::new(ChildOfMarker),
         }
     }
 }
 
 #[derive(Debug)]
 pub struct DirTrait {
-    embedded_traits: Vec<&'static dyn EmbeddedTrait>,
+    embedded_traits: Vec<Box<dyn EmbeddedTrait>>,
     trait_name: Ident,
     field_factory_trait_name: Ident,
     fields: FieldTraits,
-    markers: Vec<&'static dyn MarkerTrait>,
+    markers: Vec<Box<dyn MarkerTrait>>,
 }
 
-impl MainTrait for DirTrait {
+impl MainTraitFactory for DirTrait {
     type Trait = DirEmbeddedTrait;
     type Marker = DirMarkerTrait;
     type Error = ParseDirAttrError;
 
-    const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] = &[
-        &DebugTrait,
-        &EntriesTrait,
-        &IndexTrait,
-        &MetaTrait,
-        &PathTrait,
-        &DirectChildCountTrait,
-        &RecursiveChildCountTrait,
-    ];
-
     const DEFAULT_TRAIT_NAME: &str = "Dir";
     const DEFAULT_FIELD_FACTORY_TRAIT_NAME: &str = "DirFieldFactory";
+
+    fn default_traits(&self) -> impl IntoIterator<Item = &dyn EmbeddedTrait> {
+        const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] = &[
+            &DebugTrait,
+            &EntriesTrait,
+            &IndexTrait,
+            &MetaTrait,
+            &PathTrait,
+            &DirectChildCountTrait,
+            &RecursiveChildCountTrait,
+        ];
+
+        DEFAULT_TRAITS.into_iter().map(|t| *t)
+    }
 }
 
 impl From<MainTraitData> for DirTrait {
@@ -194,16 +206,16 @@ impl From<MainTraitData> for DirTrait {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::From)]
 pub enum ParseDirAttrError {
-    ResolveEmbeddedTrait(ResolveEmbeddedTraitError),
+    MapToEmbeddedTrait(MapToEmbeddedTraitError),
     CreateFieldTraits(CreateFieldTraitsError),
 }
 
 impl Display for ParseDirAttrError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseDirAttrError::ResolveEmbeddedTrait(e) => {
+            ParseDirAttrError::MapToEmbeddedTrait(e) => {
                 write!(f, "Unable to resolve embedded trait: {e}")
             }
             ParseDirAttrError::CreateFieldTraits(e) => {
@@ -213,20 +225,8 @@ impl Display for ParseDirAttrError {
     }
 }
 
-impl From<ResolveEmbeddedTraitError> for ParseDirAttrError {
-    fn from(value: ResolveEmbeddedTraitError) -> Self {
-        Self::ResolveEmbeddedTrait(value)
-    }
-}
-
-impl From<CreateFieldTraitsError> for ParseDirAttrError {
-    fn from(value: CreateFieldTraitsError) -> Self {
-        Self::CreateFieldTraits(value)
-    }
-}
-
 impl TryFrom<DirAttr> for DirTrait {
-    type Error = <Self as MainTrait>::Error;
+    type Error = <Self as MainTraitFactory>::Error;
     fn try_from(value: DirAttr) -> Result<Self, Self::Error> {
         Self::create(
             value.derive_default_traits,
@@ -239,7 +239,7 @@ impl TryFrom<DirAttr> for DirTrait {
     }
 }
 
-impl TraitAttr for DirTrait {
+impl MainTrait for DirTrait {
     fn trait_ident(&self) -> &Ident {
         &self.trait_name
     }
@@ -248,16 +248,16 @@ impl TraitAttr for DirTrait {
         &self.field_factory_trait_name
     }
 
-    fn embedded_traits(&self) -> impl Iterator<Item = &'static dyn EmbeddedTrait> {
-        self.embedded_traits.iter().copied()
+    fn embedded_traits(&self) -> impl Iterator<Item = &dyn EmbeddedTrait> {
+        self.embedded_traits.iter().map(|t| &**t)
     }
 
     fn fields(&self) -> &FieldTraits {
         &self.fields
     }
 
-    fn markers(&self) -> impl Iterator<Item = &'static dyn MarkerTrait> {
-        self.markers.iter().copied()
+    fn markers(&self) -> impl Iterator<Item = &dyn MarkerTrait> {
+        self.markers.iter().map(|t| &**t)
     }
 
     fn struct_impl(

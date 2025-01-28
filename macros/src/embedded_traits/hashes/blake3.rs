@@ -4,34 +4,50 @@ use syn::parse_quote;
 use super::{HashAlg, HashTrait};
 
 #[derive(Debug)]
-pub struct Blake3HashAlg;
+pub struct Blake3HashAlg {
+    len: usize,
+    id: String,
+}
 
-struct Blake3Hasher(Hasher);
+impl Blake3HashAlg {
+    pub fn new(len: usize) -> Self {
+        Self {
+            len,
+            id: format!("blake3-{len}"),
+        }
+    }
+}
+
+struct Blake3Hasher {
+    hasher: Hasher,
+    len: usize,
+}
 
 impl std::io::Write for Blake3Hasher {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.write(buf)
+        self.hasher.write(buf)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.0.flush()
+        self.hasher.flush()
     }
 }
 
 impl super::Hasher for Blake3Hasher {
     fn hash(&mut self, data: &[u8]) {
-        self.0.update(data);
+        self.hasher.update(data);
     }
 
     fn finalize(self) -> Vec<u8> {
-        let res: [u8; blake3::OUT_LEN] = self.0.finalize().into();
-        res.into()
+        let mut buf = Vec::with_capacity(self.len);
+        self.0.finalize_xof().fill(&mut buf);
+        buf
     }
 }
 
 impl HashAlg for Blake3HashAlg {
-    fn id(&self) -> &'static str {
-        super::ids::BLAKE3.id
+    fn id(&self) -> &str {
+        &self.id
     }
 
     fn trait_path(&self) -> syn::Path {
@@ -43,15 +59,22 @@ impl HashAlg for Blake3HashAlg {
     }
 
     fn hash_len(&self) -> usize {
-        blake3::OUT_LEN
+        self.len
     }
 
     fn make_hasher(&self) -> impl super::Hasher {
-        Blake3Hasher(Hasher::new())
+        Blake3Hasher {
+            hasher: Hasher::new(),
+            len: self.len,
+        }
     }
 }
 
 pub const BLAKE3: &HashTrait<Blake3HashAlg> = &HashTrait::new(Blake3HashAlg);
+
+pub fn blake3_trait(len: usize) -> HashTrait<Blake3HashAlg> {
+    
+}
 
 #[cfg(test)]
 mod tests {

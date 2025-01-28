@@ -3,21 +3,24 @@ use syn::parse_quote;
 
 use super::{digest::DigestHashAlg, HashTrait};
 
-pub const SHA1: &HashTrait<DigestHashAlg<Sha1>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA1.id,
-    || parse_quote!(::embed_it::Sha1Hash),
-    || parse_quote!(sha1),
-));
+pub fn sha1_trait() -> HashTrait<DigestHashAlg<Sha1>> {
+    HashTrait::new(DigestHashAlg::new(
+        "sha1",
+        parse_quote!(::embed_it::Sha1Hash),
+        parse_quote!(sha1),
+    ))
+}
 
 #[cfg(test)]
 mod tests {
-    use hex_literal::hex;
 
-    use super::super::{HashAlg, Hasher};
+    use super::sha1_trait;
 
     #[test]
-    fn check() {
-        let mut hasher = super::SHA1.0.make_hasher();
+    fn check_md5() {
+        use super::super::{HashAlg, Hasher};
+        use hex_literal::hex;
+        let mut hasher = sha1_trait().unwrap().alg.make_hasher();
         hasher.hash(b"hello");
         assert_eq!(
             hasher.finalize(),

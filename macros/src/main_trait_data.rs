@@ -6,26 +6,27 @@ use crate::{
         derive_default_traits::DeriveDefaultTraits,
         field::{CreateFieldTraitsError, FieldAttr, FieldTraits},
     },
-    embedded_traits::{EmbeddedTrait, EnabledTraits},
+    embedded_traits::{enabled_trait::{EnabledTrait, EnabledTraits}, EmbeddedTrait},
     marker_traits::MarkerTrait,
 };
 
 pub struct MainTraitData {
-    pub embedded_traits: Vec<&'static dyn EmbeddedTrait>,
+    pub embedded_traits: Vec<EnabledTrait>,
     pub trait_name: Ident,
     pub field_factory_trait_name: Ident,
     pub fields: FieldTraits,
-    pub markers: Vec<&'static dyn MarkerTrait>,
+    pub markers: Vec<Box<dyn MarkerTrait>>,
 }
 
-pub trait MainTrait: Sized + 'static + From<MainTraitData> {
-    type Trait: TryInto<&'static dyn EmbeddedTrait>;
-    type Marker: Into<&'static dyn MarkerTrait>;
-    type Error: From<<Self::Trait as TryInto<&'static dyn EmbeddedTrait>>::Error>
+pub trait MainTraitFactory: Sized + 'static + From<MainTraitData> {
+    type Trait: TryInto<EnabledTrait>;
+    type Marker: Into<Box<dyn MarkerTrait>>;
+    type Error: From<<Self::Trait as TryInto<EnabledTrait>>::Error>
         + From<CreateFieldTraitsError>;
-    const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait];
     const DEFAULT_TRAIT_NAME: &str;
     const DEFAULT_FIELD_FACTORY_TRAIT_NAME: &str;
+
+    fn default_traits(&self) -> impl IntoIterator<Item = &dyn EmbeddedTrait>;
 
     fn create(
         derive_default_traits: DeriveDefaultTraits,

@@ -5,8 +5,6 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::Ident;
 
-use crate::embedded_traits::TraitAttr;
-
 use super::{dir::DirTrait, file::FileTrait};
 
 #[derive(Debug, Default, FromMeta)]

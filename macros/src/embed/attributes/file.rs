@@ -7,10 +7,9 @@ use syn::Ident;
 use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
-        content::ContentTrait, debug::DebugTrait, hashes::ids::*, meta::MetaTrait, path::PathTrait,
-        EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr, EMBEDED_TRAITS,
+        content::ContentTrait, debug::DebugTrait, enabled_trait::EnabledTrait, feature_disabled::FeatureDisabled, hashes::HashTraitFactory, main_trait::MainTrait, meta::MetaTrait, path::PathTrait, EmbeddedTrait
     },
-    main_trait_data::{MainTrait, MainTraitData},
+    main_trait_data::{MainTraitData, MainTraitFactory},
     marker_traits::{child_of::ChildOfMarker, MarkerTrait},
 };
 
@@ -85,34 +84,45 @@ pub enum FileEmbeddedTrait {
     Sha3_512,
 
     #[darling(rename = "Blake3")]
-    Blake3,
+    Blake3(usize),
+}
+
+#[derive(Debug, derive_more::Display, derive_more::Error)]
+pub enum MapToEmbeddedTraitError {
+    #[display("unable to use {}: {}", self.0, self.1)]
+    FeatureDisabledFor(FileEmbeddedTrait, #[error(source)] FeatureDisabled),
 }
 
 impl FileEmbeddedTrait {
-    fn to_embedded_trait(self) -> Result<&'static dyn EmbeddedTrait, ResolveEmbeddedTraitError> {
+    fn to_embedded_trait(self) -> Result<&'static dyn EmbeddedTrait, MapToEmbeddedTraitError> {
         match self {
             Self::Path => Ok(&PathTrait),
             Self::Content => Ok(&ContentTrait),
             Self::Meta => Ok(&MetaTrait),
             Self::Debug => Ok(&DebugTrait),
 
-            Self::Md5 => EMBEDED_TRAITS.get_hash_trait(MD5).map_err(Into::into),
-            Self::Sha1 => EMBEDED_TRAITS.get_hash_trait(SHA1).map_err(Into::into),
-            Self::Sha2_224 => EMBEDED_TRAITS.get_hash_trait(SHA2_224).map_err(Into::into),
-            Self::Sha2_256 => EMBEDED_TRAITS.get_hash_trait(SHA2_256).map_err(Into::into),
-            Self::Sha2_384 => EMBEDED_TRAITS.get_hash_trait(SHA2_384).map_err(Into::into),
-            Self::Sha2_512 => EMBEDED_TRAITS.get_hash_trait(SHA2_512).map_err(Into::into),
-            Self::Sha3_224 => EMBEDED_TRAITS.get_hash_trait(SHA3_224).map_err(Into::into),
-            Self::Sha3_256 => EMBEDED_TRAITS.get_hash_trait(SHA3_256).map_err(Into::into),
-            Self::Sha3_384 => EMBEDED_TRAITS.get_hash_trait(SHA3_384).map_err(Into::into),
-            Self::Sha3_512 => EMBEDED_TRAITS.get_hash_trait(SHA3_512).map_err(Into::into),
-            Self::Blake3 => EMBEDED_TRAITS.get_hash_trait(BLAKE3).map_err(Into::into),
+
+            Self::Md5 => self.hash_trait(|| HashTraitFactory.md5()),
+            Self::Sha1 => self.hash_trait(|| HashTraitFactory.sha1()),
+            Self::Sha2_224 => self.hash_trait(|| HashTraitFactory.sha2_224()),
+            Self::Sha2_256 => self.hash_trait(|| HashTraitFactory.sha2_256()),
+            Self::Sha2_384 => self.hash_trait(|| HashTraitFactory.sha2_384()),
+            Self::Sha2_512 => self.hash_trait(|| HashTraitFactory.sha2_512()),
+            Self::Sha3_224 => self.hash_trait(|| HashTraitFactory.sha3_224()),
+            Self::Sha3_256 => self.hash_trait(|| HashTraitFactory.sha3_256()),
+            Self::Sha3_384 => self.hash_trait(|| HashTraitFactory.sha3_384()),
+            Self::Sha3_512 => self.hash_trait(|| HashTraitFactory.sha3_512()),
+            Self::Blake3(len) => self.hash_trait(|| HashTraitFactory.blake3(len)),
         }
+    }
+
+    fn hash_trait(self, make: impl Fn() -> Result<EnabledTrait, FeatureDisabled>) -> Result<EnabledTrait, MapToEmbeddedTraitError> {
+        make().map_err(|e| MapToEmbeddedTraitError::FeatureDisabledFor(self, e))
     }
 }
 
-impl TryFrom<FileEmbeddedTrait> for &'static dyn EmbeddedTrait {
-    type Error = ResolveEmbeddedTraitError;
+impl TryFrom<FileEmbeddedTrait> for EnabledTrait {
+    type Error = MapToEmbeddedTraitError;
 
     fn try_from(value: FileEmbeddedTrait) -> Result<Self, Self::Error> {
         value.to_embedded_trait()
@@ -142,22 +152,10 @@ pub struct FileTrait {
     field_factory_trait_name: Ident,
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::From)]
 pub enum ParseFileAttrError {
-    ResolveEmbeddedTrait(ResolveEmbeddedTraitError),
+    ResolveEmbeddedTrait(MapToEmbeddedTraitError),
     CreateFieldTraits(CreateFieldTraitsError),
-}
-
-impl From<ResolveEmbeddedTraitError> for ParseFileAttrError {
-    fn from(value: ResolveEmbeddedTraitError) -> Self {
-        Self::ResolveEmbeddedTrait(value)
-    }
-}
-
-impl From<CreateFieldTraitsError> for ParseFileAttrError {
-    fn from(value: CreateFieldTraitsError) -> Self {
-        Self::CreateFieldTraits(value)
-    }
 }
 
 impl Display for ParseFileAttrError {
@@ -173,19 +171,24 @@ impl Display for ParseFileAttrError {
     }
 }
 
-impl MainTrait for FileTrait {
+impl MainTraitFactory for FileTrait {
     type Trait = FileEmbeddedTrait;
 
     type Marker = FileMarkerTrait;
 
     type Error = ParseFileAttrError;
 
-    const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] =
-        &[&ContentTrait, &DebugTrait, &MetaTrait, &PathTrait];
+    
 
     const DEFAULT_TRAIT_NAME: &str = "File";
 
     const DEFAULT_FIELD_FACTORY_TRAIT_NAME: &str = "FileFieldFactory";
+    
+    fn default_traits(&self) -> impl IntoIterator<Item = &dyn EmbeddedTrait> {
+        const DEFAULT_TRAITS: &[&'static dyn EmbeddedTrait] = &[&ContentTrait, &DebugTrait, &MetaTrait, &PathTrait];
+        DEFAULT_TRAITS.iter().map(|f| *f)
+    }
+    
 }
 
 impl From<MainTraitData> for FileTrait {
@@ -208,7 +211,7 @@ impl From<MainTraitData> for FileTrait {
 }
 
 impl TryFrom<FileAttr> for FileTrait {
-    type Error = <Self as MainTrait>::Error;
+    type Error = <Self as MainTraitFactory>::Error;
     fn try_from(value: FileAttr) -> Result<FileTrait, Self::Error> {
         Self::create(
             value.derive_default_traits,
@@ -221,7 +224,7 @@ impl TryFrom<FileAttr> for FileTrait {
     }
 }
 
-impl TraitAttr for FileTrait {
+impl MainTrait for FileTrait {
     fn trait_ident(&self) -> &Ident {
         &self.trait_name
     }
@@ -230,7 +233,7 @@ impl TraitAttr for FileTrait {
         &self.field_factory_trait_name
     }
 
-    fn embedded_traits(&self) -> impl Iterator<Item = &'static dyn EmbeddedTrait> {
+    fn embedded_traits(&self) -> impl Iterator<Item = &dyn EmbeddedTrait> {
         self.embedded_traits.iter().copied()
     }
 
@@ -238,7 +241,7 @@ impl TraitAttr for FileTrait {
         &self.fields
     }
 
-    fn markers(&self) -> impl Iterator<Item = &'static dyn MarkerTrait> {
+    fn markers(&self) -> impl Iterator<Item = &dyn MarkerTrait> {
         self.markers.iter().copied()
     }
 

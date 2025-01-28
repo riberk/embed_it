@@ -1,40 +1,41 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{borrow::Cow, fmt::Debug, marker::PhantomData};
 
 use digest::Digest;
 
 use super::HashAlg;
 
-// `fn` in order to be Send + Sync,
-// because Ident is not, and PhantomData is not if `T`` is not
+#[derive(Debug)]
 pub struct DigestHashAlg<D> {
     _p: PhantomData<fn() -> D>,
-    id: &'static str,
-    trait_path: fn() -> syn::Path,
-    trait_method: fn() -> syn::Ident,
-}
-
-impl<D> Debug for DigestHashAlg<D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DigestHashAlg")
-            .field("id", &self.id)
-            .field("trait_path", &(self.trait_path)())
-            .field("trait_method", &(self.trait_method)())
-            .finish()
-    }
+    id: String,
+    trait_path: syn::Path,
+    trait_method: syn::Ident,
 }
 
 impl<D: Digest + std::io::Write> DigestHashAlg<D> {
-    pub const fn new(
-        id: &'static str,
-        trait_path: fn() -> syn::Path,
-        trait_method: fn() -> syn::Ident,
+    pub fn new<Id: Into<Cow<'static, str>>>(
+        id: Id,
+        trait_path: syn::Path,
+        trait_method: syn::Ident,
     ) -> Self {
         Self {
             _p: PhantomData,
-            id,
+            id: id.into().into_owned(),
             trait_path,
             trait_method,
         }
+    }
+    
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+    
+    pub fn trait_path(&self) -> &syn::Path {
+        &self.trait_path
+    }
+    
+    pub fn trait_method(&self) -> &syn::Ident {
+        &self.trait_method
     }
 }
 
@@ -50,7 +51,7 @@ impl<H: std::io::Write> std::io::Write for DigestHasher<H> {
     }
 }
 
-impl<H: Digest + std::io::Write> super::Hasher for DigestHasher<H> {
+impl<H: Digest + std::io::Write + 'static> super::Hasher for DigestHasher<H> {
     fn hash(&mut self, data: &[u8]) {
         self.0.update(data);
     }
@@ -60,9 +61,9 @@ impl<H: Digest + std::io::Write> super::Hasher for DigestHasher<H> {
     }
 }
 
-impl<D: Digest + std::io::Write> HashAlg for DigestHashAlg<D> {
-    fn id(&self) -> &'static str {
-        self.id
+impl<D: Digest + std::io::Write + 'static> HashAlg for DigestHashAlg<D> {
+    fn id(&self) -> &str {
+        &self.id
     }
 
     fn trait_path(&self) -> syn::Path {
@@ -77,31 +78,7 @@ impl<D: Digest + std::io::Write> HashAlg for DigestHashAlg<D> {
         <D as Digest>::output_size()
     }
 
-    fn make_hasher(&self) -> impl super::Hasher {
+    fn make_hasher(&self) -> impl super::Hasher + 'static {
         DigestHasher(D::new())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use syn::parse_quote;
-
-    use super::DigestHashAlg;
-
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    #[cfg(feature = "md5")]
-    fn debug() {
-        let alg = DigestHashAlg::<md5::Md5>::new(
-            "Hash(custom)",
-            || parse_quote!(Trait),
-            || parse_quote!(custom_hash),
-        );
-
-        assert_eq!(
-            &format!("{alg:?}"),
-            r#"DigestHashAlg { id: "Hash(custom)", trait_path: Path { leading_colon: None, segments: [PathSegment { ident: Ident(Trait), arguments: PathArguments::None }] }, trait_method: Ident(custom_hash) }"#
-        );
     }
 }

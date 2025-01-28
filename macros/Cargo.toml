@@ -23,6 +23,7 @@ convert_case = "0.7.1"
 unicode-ident = "1"
 regex = { version = "1.5.5" }
 glob = { version = "0.3"}
+derive_more = { version = "1.0.0", default-features = false, features = ["display", "error", "from"]}
 
 digest = { version = "0.10", optional = true }
 md-5 = { version = "0.10", optional = true }
@@ -36,6 +37,9 @@ blake3 = { version = "1", optional = true }
 pretty_assertions = { workspace = true }
 prettyplease = {version = "0.2", features = ["verbatim"]}
 hex-literal = { version = "0.4" }
+
+[build-dependencies]
+convert_case = "0.7.1"
 
 
 [features]

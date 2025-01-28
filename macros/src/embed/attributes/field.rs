@@ -7,9 +7,7 @@ use quote::quote;
 use syn::Ident;
 
 use crate::{
-    embed::{fix_path, pattern::EntryPattern, regex::EntryRegex, GenerateContext},
-    embedded_traits::TraitAttr,
-    fs::EntryPath,
+    embed::{fix_path, pattern::EntryPattern, regex::EntryRegex, GenerateContext}, embedded_traits::main_trait::MainTrait, fs::EntryPath
 };
 
 #[derive(Debug, FromMeta)]
@@ -62,7 +60,7 @@ impl FieldTrait {
                 .unwrap_or(true)
     }
 
-    pub fn definition(&self, generate_for: &impl TraitAttr) -> proc_macro2::TokenStream {
+    pub fn definition(&self, generate_for: &impl MainTrait) -> proc_macro2::TokenStream {
         let FieldTrait {
             field_ident,
             trait_ident,

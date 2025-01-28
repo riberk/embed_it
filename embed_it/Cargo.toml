@@ -20,8 +20,9 @@ pretty_assertions = { workspace = true }
 hex-literal = { version = "0.4" }
 
 [features]
-md5 = ["embed_it_macros/md5"]
-sha1 = ["embed_it_macros/sha1"]
-sha2 = ["embed_it_macros/sha2"]
-sha3 = ["embed_it_macros/sha3"]
-blake3 = ["embed_it_macros/blake3"]
+any-hash = []
+md5 =    ["any-hash", "embed_it_macros/md5"]
+sha1 =   ["any-hash", "embed_it_macros/sha1"]
+sha2 =   ["any-hash", "embed_it_macros/sha2"]
+sha3 =   ["any-hash", "embed_it_macros/sha3"]
+blake3 = ["any-hash", "embed_it_macros/blake3"]

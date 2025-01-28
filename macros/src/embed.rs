@@ -23,7 +23,7 @@ use syn::{
 
 use crate::{
     embedded_traits::{
-        EmbeddedTrait, MakeEmbeddedTraitImplementationError, TraitAttr, EMBEDED_TRAITS,
+        EmbeddedTrait, MakeEmbeddedTraitImplementationError,
     },
     fs::{Entry, EntryKind, FsInfo, ReadEntriesError},
     utils::{anymap::AnyMap, unique_names::UniqueNames},
@@ -102,7 +102,7 @@ fn generate_embedded_trait_definitions(
     stream
 }
 
-fn generate_factory_trait_definition(attr: &impl TraitAttr) -> proc_macro2::TokenStream {
+fn generate_factory_trait_definition(attr: &impl MainTrait) -> proc_macro2::TokenStream {
     let trait_ident = attr.trait_ident();
     let ident = attr.field_factory_trait_ident();
 
