@@ -6,19 +6,33 @@ mod traits;
 pub use embed_it_macros::Embed;
 pub use embedded_path::EmbeddedPath;
 pub use metadata::Metadata;
-pub use traits::{ChildOf, Content, DirectChildCount, EntryPath, Meta, RecursiveChildCount};
+pub use traits::{
+    ChildOf, Content, DirectChildCount, Entries, EntryPath, Index, Meta, RecursiveChildCount,
+    StrContent,
+};
+
+pub use embed_it_utils::entry::Entry;
 
 #[cfg(feature = "md5")]
-pub use traits::Md5Hash;
+pub use traits::hashes::Md5Hash;
 
 #[cfg(feature = "sha1")]
-pub use traits::Sha1Hash;
+pub use traits::hashes::Sha1Hash;
 
 #[cfg(feature = "sha2")]
-pub use traits::{Sha2_224Hash, Sha2_256Hash, Sha2_384Hash, Sha2_512Hash};
+pub use traits::hashes::{Sha2_224Hash, Sha2_256Hash, Sha2_384Hash, Sha2_512Hash};
 
 #[cfg(feature = "sha3")]
-pub use traits::{Sha3_224Hash, Sha3_256Hash, Sha3_384Hash, Sha3_512Hash};
+pub use traits::hashes::{Sha3_224Hash, Sha3_256Hash, Sha3_384Hash, Sha3_512Hash};
 
 #[cfg(feature = "blake3")]
-pub use traits::Blake3_256Hash;
+pub use traits::hashes::Blake3_256Hash;
+
+#[cfg(feature = "gzip")]
+pub use traits::compression::GzipContent;
+
+#[cfg(feature = "brotli")]
+pub use traits::compression::BrotliContent;
+
+#[cfg(feature = "zstd")]
+pub use traits::compression::ZstdContent;

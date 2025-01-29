@@ -29,7 +29,7 @@ use embed_it::Embed;
 pub struct Assets;
 
 # fn main() {
-    use embed_it::{Content, EntryPath, EmbeddedPath};
+    use embed_it::{Content, EntryPath, EmbeddedPath, Index};
     assert_eq!(Assets.hello().content(), b"hello");
     assert_eq!(Assets.hello().path(), &EmbeddedPath::new("hello.txt", "hello.txt", "hello"));
 
@@ -106,13 +106,13 @@ The main attribute
 
 ### <a name="FileAttr"></a> FileAttr
 
-| field                      | type             | multiple | required | default                            | description                                                                                                                                                                      |
-|----------------------------|------------------|----------|----------|------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `derive_default_traits`    | `bool`           | false    | false    | `true`                             | Determines whether default traits will be derived (see the `derive` row in the table)                                                                                                                   |
-| `trait_name`               | `Ident`          | false    | false    | `File`                             | What trait name will be used for a directory                                                                                                                                     |
-| `field_factory_trait_name` | `Ident`          | false    | false    | `FileFieldFactory`                 | What trait name will be used for a directory field factory                                                                                                                       |
-| `derive`                   | `Vec<DirTrait>`  | true     | false    | `Path`, `Meta`, `Debug`, `Content` | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
-| `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                           | Adds additional fields for a file. See more in the [Field Attr](#FieldAttr) section                                                                                                            |
+| field                      | type             | multiple | required | default                            | description                                                                                                                                                                                                             |
+|----------------------------|------------------|----------|----------|------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `derive_default_traits`    | `bool`           | false    | false    | `true`                             | Determines whether default traits will be derived (see the `derive` row in the table)                                                                                                                                   |
+| `trait_name`               | `Ident`          | false    | false    | `File`                             | What trait name will be used for a directory                                                                                                                                                                            |
+| `field_factory_trait_name` | `Ident`          | false    | false    | `FileFieldFactory`                 | What trait name will be used for a directory field factory                                                                                                                                                              |
+| `derive`                   | `Vec<DirTrait>`  | true     | false    | `Path`, `Meta`, `Debug`, `Content` | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list), [Hash traits](#HashTraits), [Compression traits](#CompressionTraits) |
+| `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                           | Adds additional fields for a file. See more in the [Field Attr](#FieldAttr) section                                                                                                                                     |
 
 ### <a name="EmbeddedTraits_list"></a> EmbeddedTraits list
 
@@ -126,7 +126,9 @@ The main attribute
 | **Meta**                | [`crate::Meta`]                | any             | `fn metadata(&self) -> &'static Metadata;`            | Provides metadata of an entry                                                                                                                                     |
 | **Debug**               | [`std::fmt::Debug`]            | any             |                                                       | Debugs structs                                                                                                                                                    |
 | **Content**             | [`crate::Content`]             | file            | `fn content(&self) -> &'static [u8];`                 | Provides content of a file                                                                                                                                        |
-| **Hashes**              | *\<various\>*                  | any             | `fn <name>[<_bits>](&self) -> &'static [u8; <bits>];` | Provides hash of a file content or a directory structure with files' hashes                                                                                       |
+| **StrContent**          | [`crate::StrContent`]          | file            | `fn str_content(&self) -> &'static str;`              | Provides content of a file as a str                                                                                                                               |
+| **Hashes**              | *\<various\>*                  | any             | `fn <name>[<_bits>](&self) -> &'static [u8; <bits>];` | Provides hash of a file content or a directory structure with files' hashes. See also [Hash traits](#HashTraits)                                                  |
+| **Compression**         | *\<various\>*                  | file            | `fn <name>_content(&self) -> &'static [u8];`          | Provides the compressed content of a file. See also [Compression traits](#CompressionTraits)                                                                      |
 
 ### <a name="EntryAttr"></a> EntryAttr
 | field                      | type            | multiple | required | default                                     | description                                                                                                                                      |
@@ -143,8 +145,9 @@ For each `field` defined in macros a special trait will be generated inside the 
 | `name`                     | `Ident`         | false    | true     |                                             | The name of the method that will be used by the trait                                                                                            |
 | `factory`                  | `syn::Path`     | false    | true     |                                             | The path to a factory, that will be used to create an instance of the field and to determine a field type                                        |
 | `trait_name`               | `Option<Ident>` | false    | false    | `{name.to_pascal_case()}Field`              | The name of the field trait                                                                                                                      |
-| `regex`                    | `Option<String>`| false    | false    | `None`                                      | Regular expression to match a fs entry path. The trait is implemented for a struct only if the regex matches                                |
-| `pattern`                  | `Option<String>`| false    | false    | `None`                                      | Glob pattern to match a fs entry path. The trait is implemented for a struct only if the pattern matches                                    |
+| `regex`                    | `Option<String>`| false    | false    | `None`                                      | Regular expression to match a fs entry path. The trait is implemented for a struct only if the regex matches                                     |
+| `pattern`                  | `Option<String>`| false    | false    | `None`                                      | Glob pattern to match a fs entry path. The trait is implemented for a struct only if the pattern matches                                         |
+| `global`                   | `bool`          | false    | false    | `false`                                     | If true, the trait will be implemented for the dynamic dispatch struct and you can use it with `Index` and `Entries`                             |
 
 ```rust
 use std::str::from_utf8;
@@ -177,6 +180,12 @@ use embed_it::Embed;
             regex = ".+_txt",
         ), 
         field(
+            name = global_children, 
+            factory = crate::Children, 
+            // the trait will be bound of the main trait
+            global,
+        ), 
+        field(
             name = "root_children", 
             trait_name = "Root",
             factory = crate::Children, 
@@ -204,15 +213,15 @@ impl DirFieldFactory for Children {
     type Field = Vec<&'static str>;
 
     fn create<T: Dir + ?Sized>(data: &T) -> Self::Field {
-        use embed_it::{ EntryPath };
-        data.entries().iter().map(|e| e.path().name()).collect()
+        use embed_it::{ EntryPath, Entries };
+        data.entries().iter().map(|e| e.map(|d| d.path(), |f| f.path()).value().name()).collect()
     }
 }
 
 # fn main() {
-use embed_it::{ Content };
+use embed_it::{ Content, Index };
 
-// the first field `as_str`
+// the field `as_str`
 use AsStrField;
 assert_eq!(Assets.hello().content(), b"hello");
 assert_eq!(Assets.one().content(), b"one");
@@ -225,13 +234,19 @@ assert_eq!(Assets.world().as_str().as_ref().unwrap().0, "world");
 // this is not compile due to `pattern` (`one_txt/hello` has no extension)
 // Assets.one_txt().as_str()
 
-// the second field `children`
+// the field `children`
 use ChildrenField;
 assert_eq!(Assets.one_txt().children(), &vec!["hello", "world"]);
 
-// the third field `root_children`
+// the field `root_children`
 use Root;
 assert_eq!(Assets.root_children(), &vec!["one_txt", "hello.txt", "one.txt", "world.txt"]);
+
+// the field `global_children`
+use GlobalChildrenField;
+// we can use it with dynamic dispatch
+assert_eq!(Assets.get("one_txt").unwrap().dir().unwrap().global_children(), &vec!["hello", "world"]);
+
 # }
 
 ```
@@ -309,12 +324,13 @@ mod lib {
         Sha2_224Hash, 
         Sha2_256Hash, 
         Sha2_384Hash, 
-        Sha2_512Hash, 
-        Sha3_224Hash,
-        Sha3_256Hash,
-        Sha3_384Hash,
+        Sha2_512Hash,
+        Sha3_224Hash, 
+        Sha3_256Hash, 
+        Sha3_384Hash, 
         Sha3_512Hash,
-        Blake3_256Hash, 
+        Blake3_256Hash,
+        Entries
     };
 
     use hex_literal::hex;
@@ -330,6 +346,61 @@ mod lib {
     assert_eq!(Assets.sha3_384(), &hex!("cf1f50cb53dc61b3519227887bfb20230b6878d32b10c5a9bfe016095aaecc593e612a165c89488109da62138a7214d8"));
     assert_eq!(Assets.sha3_512(), &hex!("aeff4601a53fecdad418f3245676398719d507bd7b971098ad3f4c2d495c2cc96faf022f481c0bebc0632492abd8eb9fe9f8af6d25664f33d61ff316d269682a"));
     assert_eq!(Assets.blake3_256(), &hex!("b5947e2140b0fe744b1afe9a9f9031e72571c85db079413a67b4a9309f581de7"));
+
+    # }
+}
+
+
+```
+
+### <a name="CompressionTraits"></a> Compression traits
+
+You can use any combination of compression traits on a `file`. It stores compressed content with provided algorythm.
+
+It might help you to use in a case like providing static content from a web server - you can analyze `Accept` header and use it to provide various `Content-Encoding` and body. See it in [examples](./examples/web)
+
+| Derive     | Required feature | Trait                     | Compression settings                          | 
+|------------|------------------|---------------------------|-----------------------------------------------| 
+| `Zstd`     | `zstd`           | [`crate::ZstdContent`]    | Compression level = 19                        | 
+| `Gzip`     | `gzip`           | [`crate::GzipContent`]    | Compression level = 9                         | 
+| `Brotli`   | `brotli`         | [`crate::BrotliContent`]  | Compression level = 11, LZ77 window size = 22 | 
+
+
+```rust
+#[cfg(
+    all(
+        feature = "zstd",
+        feature = "gzip",
+        feature = "brotli",
+    )
+)]
+mod lib {
+    use std::str::from_utf8;
+    use embed_it::Embed;
+
+    #[derive(Embed)]
+    #[embed(
+        path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
+        file(
+            derive(Zstd),
+            derive(Gzip),
+            derive(Brotli),
+        ),
+    )]
+    pub struct Assets;
+
+    # fn main() {
+    use embed_it::{ 
+        BrotliContent, 
+        GzipContent, 
+        ZstdContent, 
+    };
+
+    use hex_literal::hex;
+
+    assert_eq!(Assets.hello().gzip_content(), &hex!("1f8b08000000000002ffcb48cdc9c9070086a6103605000000"));
+    assert_eq!(Assets.hello().zstd_content(), &hex!("28b52ffd008829000068656c6c6f"));
+    assert_eq!(Assets.hello().brotli_content(), &hex!("0b028068656c6c6f03"));
 
     # }
 }
@@ -424,8 +495,17 @@ use embed_it::Embed;
     // `Entry` - enum with `Dir(&'static dyn Dir)/File(&'static dyn File)` variants
     // `Entry` implements intersection of `Dir`'s and `File`'s traits
     entry(
-        // struct name for `Entry` (default `Entry`).
-        struct_name = AssetsEntry,
+        // struct name for a param of the `Entry::Dir()`. Default `DynDir`
+        dir_struct_name = DynDir,
+        
+        // struct name for a param of the `Entry::File()`. Default `DynDir`
+        file_struct_name = DynFile,
+        
+        // trait name for a trait which is combination of the `Dir` and all `global` fields. Default `EntryDir`
+        dir_trait_name = EntryDir,
+        
+        // trait name for a trait which is combination of the `File` and all `global` fields. Default `EntryFile`
+        file_trait_name = EntryFile,
     ),
     // if true, the macro will use the extension as a part of `StructName`s and `method_name`s
     // e.g. hello.txt turns into HelloTxt/hello_txt() if with_extension = true, and Hello/hello() if with_extension = false
@@ -444,7 +524,7 @@ impl AssetsDirFieldFactory for Children {
 
     fn create<T: AssetsDir + ?Sized>(data: &T) -> Self::Field {
         use embed_it::EntryPath;
-        data.entries().iter().map(|v| v.path().relative_path_str()).collect()
+        data.entries().iter().map(|v| v.map(|d| d.path(), |f| f.path()).value().relative_path_str()).collect()
     }
 }
 
@@ -460,7 +540,7 @@ impl AssetsFileFieldFactory for AsStr {
 }
 
 # fn main() {
-    use embed_it::{Content, EntryPath, Meta};
+    use embed_it::{Content, EntryPath, Meta, Entries, Entry};
     assert_eq!(Assets.hello_txt().as_str(), &Some("hello"));
     assert_eq!(Assets.one_txt_1().as_str(), &Some("one"));
     assert_eq!(Assets.world_txt().as_str(), &Some("world"));
@@ -470,11 +550,10 @@ impl AssetsFileFieldFactory for AsStr {
 
     assert_eq!(Assets.one_txt().children(), &vec!["one_txt/hello", "one_txt/world"]);
 
-    let entries: &'static [AssetsEntry] = Assets.entries();
+    let entries: &'static [Entry<_, _>] = Assets.entries();
     for entry in entries {
-        // `Entry` implements intersection of `Dir`'s and `File`'s traits
-        println!("relative_path: {:?}", entry.path().relative_path_str());
-        println!("{:?}", entry.metadata());
+        println!("relative_path: {:?}", entry.map(|d| d.path(), |f| f.path()).value().relative_path_str());
+        println!("{:?}", entry.map(|d| d.metadata(), |f| f.metadata()).value());
         println!("{:#?}", entry);
     }
 
@@ -503,13 +582,13 @@ This works for struct names in the same way
 
 ## What code will be generated by macros
 
-1. The macro generates all embedded trait definitions, like `Entries` and `Index` which depend on a context
-2. The macro generates definitions for traits `Dir` and `File` where each is a compilation of previous step suitable traits
-3. The macro generates enum for the `Entry` (`Dir(&'static dyn Dir)`/`File(&'static dyn File)`).
-4. The macro implements the intersection of the `Dir` and `File` traits for the `Entry` struct
-5. The macro generates traits for `FileFieldFactory` and `DirFieldFactory` with bounds to `File`/`Dir` traits for the argument of the method
-6. The macro generates traits for each `field`
-7. For any entry starting from the root:
+1. The macro generates definitions for traits `Dir` and `File` where each is a compilation of the all derived traits
+1. The macro generates definitions for traits `EntryDir` and `EntryFile` where each is a compilation of a previous step trait and the all `field` traits with `global`
+1. The macro generates structs `DynDir(&'static dyn EntryDir)` and `DynFile(&'static dyn EntryFile)` which is used for dynamic dispatch (like `Entries` or `Index` traits).
+1. The macro implements the intersection of the `Dir` and `File` traits for the `Entry` struct
+4. The macro generates traits for `FileFieldFactory` and `DirFieldFactory` with bounds to `File`/`Dir` traits for the argument of the method
+5. The macro generates traits for each `field`
+6. For any entry starting from the root:
     * For each type of entry, the macro implements the requested suitable embedded traits (like `Content`, `Path`, `Metadata`, `Entries`, `Index`, etc.)
     * For each type of entry, the macro implements traits for all suitable fields from the step 6
     * For a directory, the macro recursively generates code for each child
@@ -531,27 +610,25 @@ impl ::embed_it::Content for Hello {
 
 * by a `static` `LazyLock` for non-const items, which can be created without a context
 ```rust
+
+use embed_it::{Entry, Index, Content};
+
 pub struct Assets;
 
-pub trait Dir: Send + Sync + Index {}
-pub trait File: Send + Sync + embed_it::Content {}
+pub trait Dir: Send + Sync + Index<EntryDir, EntryFile> {}
+pub trait File: Send + Sync + Content {}
 
-pub enum Entry {
-    Dir(&'static dyn Dir),
-    File(&'static dyn File),
-}
+pub struct EntryDir(&'static dyn Dir);
+pub struct EntryFile(&'static dyn File);
 
-trait Index {
-    fn get(&self, path: &str) -> Option<&'static Entry>;
-}
 
 #[automatically_derived]
-impl Index for Assets {
-    fn get(&self, path: &str) -> Option<&'static Entry> {
+impl Index<EntryDir, EntryFile> for Assets {
+    fn get(&self, path: &str) -> Option<&'static Entry<EntryDir, EntryFile>> {
         static VALUE: ::std::sync::LazyLock<
             ::std::collections::HashMap<
                 &'static str,
-                Entry,
+                Entry<EntryDir, EntryFile>,
             >,
         > = ::std::sync::LazyLock::new(|| {
             let mut map = ::std::collections::HashMap::with_capacity(2usize);

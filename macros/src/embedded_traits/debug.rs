@@ -1,9 +1,9 @@
+use embed_it_utils::entry::EntryKind;
 use quote::{quote, ToTokens};
 use syn::parse_quote;
 
-use crate::{
-    embed::{EntryTokens, GenerateContext, IndexTokens},
-    fs::EntryKind,
+use crate::embed::{
+    attributes::embed::GenerationSettings, EntryTokens, GenerateContext, IndexTokens,
 };
 
 use super::{EmbeddedTrait, MakeEmbeddedTraitImplementationError};
@@ -12,7 +12,7 @@ use super::{EmbeddedTrait, MakeEmbeddedTraitImplementationError};
 pub struct DebugTrait;
 
 impl EmbeddedTrait for DebugTrait {
-    fn path(&self, _nesting: usize) -> syn::Path {
+    fn path(&self, _nesting: usize, _: &GenerationSettings) -> syn::Path {
         parse_quote!(::std::fmt::Debug)
     }
 
@@ -42,7 +42,7 @@ impl EmbeddedTrait for DebugTrait {
                 Ok(debug(ctx, fields))
             }
             EntryKind::File => {
-                let file_len = ctx.entry.metadata().len();
+                let file_len = ctx.entry.as_ref().value().metadata().len();
                 let debug_content = format!("<{} bytes>", file_len);
                 Ok(debug(
                     ctx,
@@ -54,23 +54,12 @@ impl EmbeddedTrait for DebugTrait {
         }
     }
 
-    fn definition(&self, _: &syn::Ident) -> Option<proc_macro2::TokenStream> {
+    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
         None
     }
 
     fn id(&self) -> &'static str {
         "Debug"
-    }
-
-    fn entry_impl_body(&self) -> proc_macro2::TokenStream {
-        quote! {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                match self {
-                    Self::Dir(d) => f.debug_tuple("Dir").field(d).finish(),
-                    Self::File(d) => f.debug_tuple("File").field(d).finish(),
-                }
-            }
-        }
     }
 }
 

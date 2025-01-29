@@ -20,11 +20,35 @@ jobs:
       - run: rustup component add llvm-tools-preview --toolchain nightly-x86_64-unknown-linux-gnu
       - run: cargo +nightly llvm-cov clean --workspace
 
-      - run: cargo +nightly llvm-cov nextest --all-features --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --no-report
-      - run: cargo +nightly llvm-cov         --all-features --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+      - run: cargo +nightly llvm-cov nextest --all-features      --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov         --all-features      --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
 
-      - run: cargo +nightly llvm-cov nextest --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --no-report
-      - run: cargo +nightly llvm-cov         --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+      - run: cargo +nightly llvm-cov nextest                     --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov                             --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+
+      - run: cargo +nightly llvm-cov nextest --features="md5"    --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov         --features="md5"    --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+
+      - run: cargo +nightly llvm-cov nextest --features="sha1"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov         --features="sha1"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+
+      - run: cargo +nightly llvm-cov nextest --features="sha2"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov         --features="sha2"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+
+      - run: cargo +nightly llvm-cov nextest --features="sha3"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov         --features="sha3"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+
+      - run: cargo +nightly llvm-cov nextest --features="blake3" --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov         --features="blake3" --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+
+      - run: cargo +nightly llvm-cov nextest --features="gzip"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov         --features="gzip"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+
+      - run: cargo +nightly llvm-cov nextest --features="zstd"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov         --features="zstd"   --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
+
+      - run: cargo +nightly llvm-cov nextest --features="brotli" --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs"       --no-report
+      - run: cargo +nightly llvm-cov         --features="brotli" --workspace --ignore-filename-regex=".+/macros/src/test_helpers.rs" --doc --no-report
 
       - run: echo "COVERAGE=$(cargo +nightly llvm-cov report --summary-only --json | jq '.data[0].totals.lines.percent | . * 100 | round / 100')" >> $GITHUB_ENV
       - run: cargo +nightly llvm-cov report --ignore-filename-regex=".+/macros/src/test_helpers.rs" --html
@@ -35,4 +59,3 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
-

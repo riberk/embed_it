@@ -3,7 +3,9 @@ use std::time::{Duration, SystemTime};
 use quote::quote;
 use syn::parse_quote;
 
-use crate::embed::{EntryTokens, GenerateContext, IndexTokens};
+use crate::embed::{
+    attributes::embed::GenerationSettings, EntryTokens, GenerateContext, IndexTokens,
+};
 
 use super::{EmbeddedTrait, MakeEmbeddedTraitImplementationError};
 
@@ -15,7 +17,7 @@ fn method() -> syn::Ident {
 }
 
 impl EmbeddedTrait for MetaTrait {
-    fn path(&self, _nesting: usize) -> syn::Path {
+    fn path(&self, _nesting: usize, _: &GenerationSettings) -> syn::Path {
         parse_quote!(::embed_it::Meta)
     }
 
@@ -42,7 +44,7 @@ impl EmbeddedTrait for MetaTrait {
             value.ok().map(constructor).unwrap_or_else(|| quote! {None})
         }
 
-        let meta = &ctx.entry.metadata();
+        let meta = &ctx.entry.as_ref().value().metadata();
 
         let accessed = make_stream(meta.accessed());
         let created = make_stream(meta.created());
@@ -61,23 +63,11 @@ impl EmbeddedTrait for MetaTrait {
         })
     }
 
-    fn definition(&self, _: &syn::Ident) -> Option<proc_macro2::TokenStream> {
+    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
         None
     }
 
     fn id(&self) -> &'static str {
         "Meta"
-    }
-
-    fn entry_impl_body(&self) -> proc_macro2::TokenStream {
-        let method = method();
-        quote! {
-            fn #method(&self) -> &'static ::embed_it::Metadata {
-                match self {
-                    Self::Dir(d) => d.#method(),
-                    Self::File(f) => f.#method(),
-                }
-            }
-        }
     }
 }

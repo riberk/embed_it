@@ -2,7 +2,16 @@
     "rust-analyzer.linkedProjects": [
         "./Cargo.toml",
     ],
-    "rust-analyzer.cargo.features": ["md5", "sha1", "sha2", "sha3", "blake3"],
+    "rust-analyzer.cargo.features": [
+        "md5",
+        "sha1",
+        "sha2",
+        "sha3",
+        "blake3",
+        "brotli",
+        "zstd",
+        "gzip"
+    ],
     "rust-analyzer.check.command": "clippy",
     "rust-analyzer.semanticHighlighting.doc.comment.inject.enable": true,
     "github.gitAuthentication": false,

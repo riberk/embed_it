@@ -1,10 +1,14 @@
+use embed_it_utils::entry::EntryKind;
 use quote::quote;
 use syn::parse_quote;
 
 use crate::{
-    embed::{bool_like_enum::BoolLikeEnum, EntryTokens, GenerateContext, IndexTokens},
+    embed::{
+        attributes::embed::GenerationSettings, bool_like_enum::BoolLikeEnum, EntryTokens,
+        GenerateContext, IndexTokens,
+    },
     embedded_traits::MakeEmbeddedTraitImplementationError,
-    fs::EntryKind,
+    utils::entry_ext::EntryKindExt,
 };
 
 use super::EmbeddedTrait;
@@ -12,17 +16,11 @@ use super::EmbeddedTrait;
 #[derive(Debug)]
 pub struct IndexTrait;
 
-fn ident() -> syn::Ident {
-    parse_quote!(Index)
-}
-
-fn method() -> syn::Ident {
-    parse_quote!(get)
-}
-
 impl EmbeddedTrait for IndexTrait {
-    fn path(&self, nesting: usize) -> syn::Path {
-        GenerateContext::make_nested_path(nesting, ident())
+    fn path(&self, level: usize, settings: &GenerationSettings) -> syn::Path {
+        let dir = settings.dir_entry_param(level);
+        let file = settings.file_entry_param(level);
+        parse_quote!(::embed_it::Index<#dir, #file>)
     }
 
     fn impl_body(
@@ -37,11 +35,16 @@ impl EmbeddedTrait for IndexTrait {
                 trait_id: self.id(),
             });
         }
-        let entry_path = &ctx.entry_path;
+        let entry_path = &ctx.settings.entry_path(ctx.level);
         let index_len = index.len();
+
+        let struct_ident = &ctx.struct_ident;
+        let entry_struct_path = ctx.settings.dir_entry_param(ctx.level);
         let index = index
             .iter()
-            .fold(proc_macro2::TokenStream::new(), |mut acc, tokens| {
+            .fold(quote! {
+                map.insert("", ::embed_it::Entry::Dir(#entry_struct_path(&#struct_ident)));
+            }, |mut acc, tokens| {
                 let IndexTokens {
                     relative_path,
                     struct_path,
@@ -49,8 +52,9 @@ impl EmbeddedTrait for IndexTrait {
                     ..
                 } = tokens;
                 let kind_ident = kind.ident();
+                let entry_struct_path = ctx.settings.entry_param_for(*kind, ctx.level);
                 acc.extend(quote! {
-                    map.insert(#relative_path, #entry_path::#kind_ident(&#struct_path));
+                    map.insert(#relative_path, ::embed_it::Entry::#kind_ident(#entry_struct_path(&#struct_path)));
                 });
                 acc
             });
@@ -59,7 +63,6 @@ impl EmbeddedTrait for IndexTrait {
             #index
             map
         };
-        let method = method();
         let value_get = if ctx.settings.support_alt_separator.as_bool() {
             quote! {
                 VALUE.get(path.replace("\\", "/").as_str())
@@ -71,7 +74,7 @@ impl EmbeddedTrait for IndexTrait {
         };
 
         Ok(quote! {
-            fn #method(&self, path: &str) -> Option<&'static #entry_path> {
+            fn get(&self, path: &str) -> Option<&'static #entry_path> {
                 static VALUE: ::std::sync::LazyLock<::std::collections::HashMap<&'static str, #entry_path>> = ::std::sync::LazyLock::new(|| {
                     #index
                 });
@@ -80,21 +83,11 @@ impl EmbeddedTrait for IndexTrait {
         })
     }
 
-    fn definition(&self, entry_path: &syn::Ident) -> Option<proc_macro2::TokenStream> {
-        let ident = ident();
-        let method = method();
-        Some(quote! {
-            pub trait #ident {
-                fn #method(&self, path: &str) -> Option<&'static #entry_path>;
-            }
-        })
+    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
+        None
     }
 
     fn id(&self) -> &'static str {
         "Index"
-    }
-
-    fn entry_impl_body(&self) -> proc_macro2::TokenStream {
-        panic!("Only dirs are supported to derive '{:?}'", self.id())
     }
 }

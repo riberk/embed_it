@@ -58,9 +58,13 @@ jobs:
       - run: echo "VERSION=$(echo -n $GITHUB_REF | sed --expression='s|refs/tags/release/v||g')" >> $GITHUB_ENV
       - run: sed -i -E "s/^version = \".+\"$/version = \"$VERSION\"/g" Cargo.toml
       - run: sed -i -E "s/^embed_it_macros = \{ version = \".+\", path = \"(.+)\" \}$/embed_it_macros = \{ version = \"^$VERSION\", path = \"\1\" \}/g" embed_it/Cargo.toml
+      - run: sed -i -E "s/^embed_it_utils = \{ version = \".+\", path = \"(.+)\" \}$/embed_it_utils = \{ version = \"^$VERSION\", path = \"\1\" \}/g" embed_it/Cargo.toml
+      - run: sed -i -E "s/^embed_it_utils = \{ version = \".+\", path = \"(.+)\" \}$/embed_it_utils = \{ version = \"^$VERSION\", path = \"\1\" \}/g" macros/Cargo.toml
       - run: cargo login "${CRATES_IO_PUSH_TOKEN}"
         env: 
           CRATES_IO_PUSH_TOKEN: ${{ secrets.CRATES_IO_PUSH_TOKEN }}
+      - run: cargo publish -p embed_it_utils --dry-run --allow-dirty
+      - run: cargo publish -p embed_it_utils --allow-dirty
       - run: cargo publish -p embed_it_macros --dry-run --allow-dirty
       - run: cargo publish -p embed_it_macros --allow-dirty
       - run: cargo publish -p embed_it --dry-run --allow-dirty

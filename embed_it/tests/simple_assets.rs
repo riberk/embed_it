@@ -1,20 +1,23 @@
 use embed_it::Embed;
 
 #[derive(Embed)]
-#[embed(path = "$CARGO_MANIFEST_DIR/../example_dirs/assets")]
+#[embed(
+    path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
+    file(derive(StrContent))
+)]
 pub struct Assets;
 
 mod tests {
-    use embed_it::{Content, EmbeddedPath, EntryPath};
+    use embed_it::{Content, EmbeddedPath, Entries, Entry, EntryPath, Index, StrContent};
 
-    use crate::{Dir, Entries, Entry, File, Index};
+    use crate::{Dir, DynDir, DynFile, EntryDir, EntryFile};
 
     use super::Assets;
 
     fn get_entry<D: Dir + ?Sized, T>(
         dir: &D,
         path: &str,
-        f: impl FnOnce(&Entry) -> Option<T>,
+        f: impl FnOnce(&Entry<DynDir, DynFile>) -> Option<T>,
         expected: &str,
     ) -> T {
         let entry = dir
@@ -23,17 +26,18 @@ mod tests {
         f(entry).unwrap_or_else(|| panic!("'{}' is not a {}", path, expected))
     }
 
-    fn get_file<D: Dir + ?Sized>(dir: &D, path: &str) -> &'static dyn File {
-        get_entry(dir, path, |e| e.file(), "file")
+    fn get_file<D: Dir + ?Sized>(dir: &D, path: &str) -> &'static dyn EntryFile {
+        get_entry(dir, path, |e| e.file().map(|f| f.into_file()), "file")
     }
 
-    fn get_dir<D: Dir + ?Sized>(dir: &D, path: &str) -> &'static dyn Dir {
-        get_entry(dir, path, |e| e.dir(), "directory")
+    fn get_dir<D: Dir + ?Sized>(dir: &D, path: &str) -> &'static dyn EntryDir {
+        get_entry(dir, path, |e| e.dir().map(|d| d.into_dir()), "directory")
     }
 
     #[test]
     fn fields() {
         assert_eq!(Assets.hello().content(), b"hello");
+        assert_eq!(Assets.hello().str_content(), "hello");
         assert_eq!(
             Assets.hello().path(),
             &EmbeddedPath::new("hello.txt", "hello.txt", "hello")
@@ -123,9 +127,9 @@ mod tests {
 
     #[test]
     fn get() {
-        assert!(Assets.get("").is_none());
         assert!(Assets.get("hello").is_none());
 
+        assert_eq!(get_dir(&Assets, "").path().relative_path_str(), "");
         assert_eq!(get_file(&Assets, "hello.txt").content(), b"hello");
         assert_eq!(get_file(&Assets, "one.txt").content(), b"one");
         assert_eq!(get_file(&Assets, "world.txt").content(), b"world");
@@ -134,6 +138,7 @@ mod tests {
 
         let one_txt = get_dir(&Assets, "one_txt");
         assert_eq!(one_txt.path().relative_path_str(), "one_txt");
+        assert_eq!(get_dir(one_txt, "").path().relative_path_str(), "one_txt");
         assert_eq!(get_file(one_txt, "hello").content(), b"hello");
         assert_eq!(
             get_file(one_txt, "hello").path().relative_path_str(),

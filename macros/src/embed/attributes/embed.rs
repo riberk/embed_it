@@ -1,8 +1,9 @@
 use std::fmt::Display;
 use std::path::PathBuf;
 
+use crate::embed::GenerateContext;
 use crate::embedded_traits::TraitAttr;
-use crate::fs::{expand_and_canonicalize, get_env, Entry, EntryKind, ExpandPathError};
+use crate::fs::{expand_and_canonicalize, get_env, ExpandPathError};
 
 use super::dir::{DirAttr, DirTrait, ParseDirAttrError};
 use super::entry::{EntryAttr, EntryStruct};
@@ -10,8 +11,9 @@ use super::file::{FileAttr, FileTrait, ParseFileAttrError};
 use super::support_alt_separator::SupportAltSeparator;
 use super::with_extension::WithExtension;
 use darling::FromDeriveInput;
+use embed_it_utils::entry::{Entry, EntryKind};
 use proc_macro2::TokenStream;
-use syn::Ident;
+use syn::{parse_quote, Ident};
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(embed), supports(struct_unit))]
@@ -102,6 +104,13 @@ impl GenerationSettings {
         }
     }
 
+    pub fn entry_param_for(&self, kind: EntryKind, level: usize) -> syn::Path {
+        match kind {
+            EntryKind::Dir => self.dir_entry_param(level),
+            EntryKind::File => self.file_entry_param(level),
+        }
+    }
+
     pub fn field_traits_definition(
         &self,
     ) -> Result<proc_macro2::TokenStream, GenerateFirldTraitsDefinitionError> {
@@ -127,6 +136,22 @@ impl GenerationSettings {
         }
 
         Ok(result)
+    }
+
+    /// The path of the type which is `Entry::Dir($path)`
+    pub fn dir_entry_param(&self, level: usize) -> syn::Path {
+        GenerateContext::make_nested_path(level, self.entry.dir_struct_ident().clone())
+    }
+
+    /// The path of the type which is `Entry::File($path)`
+    pub fn file_entry_param(&self, level: usize) -> syn::Path {
+        GenerateContext::make_nested_path(level, self.entry.file_struct_ident().clone())
+    }
+
+    pub fn entry_path(&self, level: usize) -> syn::Path {
+        let dir = self.dir_entry_param(level);
+        let file = self.file_entry_param(level);
+        parse_quote!(::embed_it::Entry<#dir, #file>)
     }
 }
 

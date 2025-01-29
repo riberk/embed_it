@@ -1,100 +1,148 @@
-use std::collections::HashMap;
-
 use darling::FromMeta;
-use proc_macro2::Span;
 use quote::quote;
-use syn::Ident;
+use syn::{parse_quote, punctuated::Punctuated, Ident, Token, TypeParamBound};
 
-use crate::embedded_traits::TraitAttr;
+use crate::embedded_traits::{debug::DebugTrait, TraitAttr};
 
 use super::{dir::DirTrait, file::FileTrait};
 
 #[derive(Debug, Default, FromMeta)]
 pub struct EntryAttr {
     #[darling(default)]
-    struct_name: Option<Ident>,
+    dir_trait_name: Option<Ident>,
+
+    #[darling(default)]
+    file_trait_name: Option<Ident>,
+
+    #[darling(default)]
+    dir_struct_name: Option<Ident>,
+
+    #[darling(default)]
+    file_struct_name: Option<Ident>,
 }
 
 #[derive(Debug)]
 pub struct EntryStruct {
-    struct_name: Ident,
+    dir_trait_name: Ident,
+    file_trait_name: Ident,
+    dir_struct_name: Ident,
+    file_struct_name: Ident,
 }
 
 impl From<EntryAttr> for EntryStruct {
     fn from(value: EntryAttr) -> Self {
         Self {
-            struct_name: value
-                .struct_name
-                .unwrap_or_else(|| Ident::new("Entry", Span::call_site())),
+            dir_trait_name: value
+                .dir_trait_name
+                .unwrap_or_else(|| parse_quote!(EntryDir)),
+            file_trait_name: value
+                .file_trait_name
+                .unwrap_or_else(|| parse_quote!(EntryFile)),
+            dir_struct_name: value
+                .dir_struct_name
+                .unwrap_or_else(|| parse_quote!(DynDir)),
+            file_struct_name: value
+                .file_struct_name
+                .unwrap_or_else(|| parse_quote!(DynFile)),
         }
     }
 }
 
 impl EntryStruct {
-    pub fn ident(&self) -> &Ident {
-        &self.struct_name
+    pub fn dir_trait_ident(&self) -> &Ident {
+        &self.dir_trait_name
+    }
+
+    pub fn file_trait_ident(&self) -> &Ident {
+        &self.file_trait_name
+    }
+
+    pub fn dir_struct_ident(&self) -> &Ident {
+        &self.dir_struct_name
+    }
+
+    pub fn file_struct_ident(&self) -> &Ident {
+        &self.file_struct_name
     }
 
     pub fn implementation(&self, dir: &DirTrait, file: &FileTrait) -> proc_macro2::TokenStream {
-        let dir_traits = dir
-            .embedded_traits()
-            .map(|v| (v.id(), v))
-            .collect::<HashMap<_, _>>();
-        let file_traits = file
-            .embedded_traits()
-            .map(|v| (v.id(), v))
-            .collect::<HashMap<_, _>>();
-        let ident = self.ident();
         let dir_trait = dir.trait_ident();
         let file_trait = file.trait_ident();
-        let mut stream = quote! {
-            pub enum #ident {
-                Dir(&'static dyn #dir_trait),
-                File(&'static dyn #file_trait),
+
+        let entry_dir_trait = &self.dir_trait_ident();
+        let entry_file_trait = &self.file_trait_ident();
+
+        let entry_dir_struct = &self.dir_struct_ident();
+        let entry_file_struct = &self.file_struct_ident();
+
+        let mut dir_bounds = Punctuated::<TypeParamBound, Token![+]>::new();
+        dir_bounds.push(parse_quote!(#dir_trait));
+        for b in dir.fields().iter().filter_map(|f| f.global_bound()) {
+            dir_bounds.push(b);
+        }
+
+        let mut file_bounds = Punctuated::<TypeParamBound, Token![+]>::new();
+        file_bounds.push(parse_quote!(#file_trait));
+        for b in file.fields().iter().filter_map(|f| f.global_bound()) {
+            file_bounds.push(b);
+        }
+
+        let mut file_derive = Punctuated::<syn::Path, Token![,]>::new();
+        file_derive.push(parse_quote!(Clone));
+        file_derive.push(parse_quote!(Copy));
+        if file.is_trait_implemented(&DebugTrait) {
+            file_derive.push(parse_quote!(Debug));
+        }
+
+        let mut dir_derive = Punctuated::<syn::Path, Token![,]>::new();
+        dir_derive.push(parse_quote!(Clone));
+        dir_derive.push(parse_quote!(Copy));
+        if dir.is_trait_implemented(&DebugTrait) {
+            dir_derive.push(parse_quote!(Debug));
+        }
+
+        let stream = quote! {
+            pub trait #entry_dir_trait: #dir_bounds {}
+            pub trait #entry_file_trait: #file_bounds {}
+
+            #[derive(#dir_derive)]
+            pub struct #entry_dir_struct(&'static dyn #entry_dir_trait);
+
+            #[automatically_derived]
+            impl #entry_dir_struct {
+                fn into_dir(self) -> &'static dyn #entry_dir_trait {
+                    self.0
+                }
             }
 
-            impl #ident {
-                /// If it's a dir returns Some, else None
-                pub fn dir(&self) -> Option<&'static dyn #dir_trait> {
-                    match self {
-                        Self::File(_) => None,
-                        Self::Dir(d) => Some(*d),
-                    }
-                }
+            #[automatically_derived]
+            impl ::std::ops::Deref for #entry_dir_struct {
+                type Target = dyn #entry_dir_trait;
 
-                /// If it's a file returns Some, else None
-                pub fn file(&self) -> Option<&'static dyn #file_trait> {
-                    match self {
-                        Self::File(f) => Some(*f),
-                        Self::Dir(_) => None,
-                    }
+                fn deref(&self) -> &Self::Target {
+                    self.0
                 }
             }
 
-            impl From<&'static dyn #file_trait> for #ident {
-                fn from(value: &'static dyn #file_trait) -> Self {
-                    Self::File(value)
+            #[derive(#file_derive)]
+            pub struct #entry_file_struct(&'static dyn #entry_file_trait);
+
+            #[automatically_derived]
+            impl ::std::ops::Deref for #entry_file_struct {
+                type Target = dyn #entry_file_trait;
+
+                fn deref(&self) -> &Self::Target {
+                    self.0
                 }
             }
 
-            impl From<&'static dyn #dir_trait> for #ident {
-                fn from(value: &'static dyn #dir_trait) -> Self {
-                    Self::Dir(value)
+            #[automatically_derived]
+            impl #entry_file_struct {
+                fn into_file(self) -> &'static dyn #entry_file_trait {
+                    self.0
                 }
             }
         };
-
-        for (dir_trait_id, dir_trait) in dir_traits {
-            if file_traits.contains_key(dir_trait_id) {
-                let trait_path = dir_trait.path(0);
-                let impl_body = dir_trait.entry_impl_body();
-                stream.extend(quote! {
-                    impl #trait_path for #ident {
-                        #impl_body
-                    }
-                });
-            }
-        }
 
         stream
     }

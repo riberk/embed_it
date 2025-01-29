@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+</head>
+<body>
+    <ul>
+        {{ for entry in entries }}
+        <li>
+            <a href="/public/{entry.href}"><img src="/public/{entry.icon_src}" style="height: 1em;"/>{entry.title}</a>
+        </li>
+        {{ endfor }}
+    </ul>
+</body>
+</html>

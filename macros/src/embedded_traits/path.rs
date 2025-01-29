@@ -2,7 +2,7 @@ use quote::quote;
 use syn::parse_quote;
 
 use crate::{
-    embed::{EntryTokens, GenerateContext, IndexTokens},
+    embed::{attributes::embed::GenerationSettings, EntryTokens, GenerateContext, IndexTokens},
     fs::EntryPath,
 };
 
@@ -16,7 +16,7 @@ fn method() -> syn::Ident {
 }
 
 impl EmbeddedTrait for PathTrait {
-    fn path(&self, _nesting: usize) -> syn::Path {
+    fn path(&self, _nesting: usize, _: &GenerationSettings) -> syn::Path {
         parse_quote!(::embed_it::EntryPath)
     }
 
@@ -31,7 +31,7 @@ impl EmbeddedTrait for PathTrait {
             file_name,
             file_stem,
             ..
-        } = ctx.entry.path();
+        } = ctx.entry.as_ref().value().path();
 
         let method = method();
         Ok(quote! {
@@ -42,23 +42,11 @@ impl EmbeddedTrait for PathTrait {
         })
     }
 
-    fn definition(&self, _: &syn::Ident) -> Option<proc_macro2::TokenStream> {
+    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
         None
     }
 
     fn id(&self) -> &'static str {
         "Path"
-    }
-
-    fn entry_impl_body(&self) -> proc_macro2::TokenStream {
-        let method = method();
-        quote! {
-            fn #method(&self) -> &'static ::embed_it::EmbeddedPath {
-                match self {
-                    Self::Dir(d) => d.#method(),
-                    Self::File(f) => f.#method(),
-                }
-            }
-        }
     }
 }

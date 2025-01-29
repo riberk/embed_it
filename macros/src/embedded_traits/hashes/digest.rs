@@ -73,35 +73,7 @@ impl<D: Digest + std::io::Write> HashAlg for DigestHashAlg<D> {
         (self.trait_method)()
     }
 
-    fn hash_len(&self) -> usize {
-        <D as Digest>::output_size()
-    }
-
     fn make_hasher(&self) -> impl super::Hasher {
         DigestHasher(D::new())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use syn::parse_quote;
-
-    use super::DigestHashAlg;
-
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    #[cfg(feature = "md5")]
-    fn debug() {
-        let alg = DigestHashAlg::<md5::Md5>::new(
-            "Hash(custom)",
-            || parse_quote!(Trait),
-            || parse_quote!(custom_hash),
-        );
-
-        assert_eq!(
-            &format!("{alg:?}"),
-            r#"DigestHashAlg { id: "Hash(custom)", trait_path: Path { leading_colon: None, segments: [PathSegment { ident: Ident(Trait), arguments: PathArguments::None }] }, trait_method: Ident(custom_hash) }"#
-        );
     }
 }

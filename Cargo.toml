@@ -1,5 +1,5 @@
 [workspace]
-members = [ "embed_it", "macros"]
+members = ["embed_it", "utils", "macros"]
 resolver = "2"
 
 [workspace.package]
