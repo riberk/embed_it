@@ -126,6 +126,7 @@ The main attribute
 | **Meta**                | [`crate::Meta`]                | any             | `fn metadata(&self) -> &'static Metadata;`            | Provides metadata of an entry                                                                                                                                     |
 | **Debug**               | [`std::fmt::Debug`]            | any             |                                                       | Debugs structs                                                                                                                                                    |
 | **Content**             | [`crate::Content`]             | file            | `fn content(&self) -> &'static [u8];`                 | Provides content of a file                                                                                                                                        |
+| **StrContent**          | [`crate::StrContent`]          | file            | `fn str_content(&self) -> &'static str;`              | Provides content of a file as a str                                                                                                                               |
 | **Hashes**              | *\<various\>*                  | any             | `fn <name>[<_bits>](&self) -> &'static [u8; <bits>];` | Provides hash of a file content or a directory structure with files' hashes. See also [Hash traits](#HashTraits)                                                  |
 | **Compression**         | *\<various\>*                  | file            | `fn <name>_content(&self) -> &'static [u8];`          | Provides the compressed content of a file. See also [Compression traits](#CompressionTraits)                                                                      |
 
@@ -144,8 +145,9 @@ For each `field` defined in macros a special trait will be generated inside the 
 | `name`                     | `Ident`         | false    | true     |                                             | The name of the method that will be used by the trait                                                                                            |
 | `factory`                  | `syn::Path`     | false    | true     |                                             | The path to a factory, that will be used to create an instance of the field and to determine a field type                                        |
 | `trait_name`               | `Option<Ident>` | false    | false    | `{name.to_pascal_case()}Field`              | The name of the field trait                                                                                                                      |
-| `regex`                    | `Option<String>`| false    | false    | `None`                                      | Regular expression to match a fs entry path. The trait is implemented for a struct only if the regex matches                                |
-| `pattern`                  | `Option<String>`| false    | false    | `None`                                      | Glob pattern to match a fs entry path. The trait is implemented for a struct only if the pattern matches                                    |
+| `regex`                    | `Option<String>`| false    | false    | `None`                                      | Regular expression to match a fs entry path. The trait is implemented for a struct only if the regex matches                                     |
+| `pattern`                  | `Option<String>`| false    | false    | `None`                                      | Glob pattern to match a fs entry path. The trait is implemented for a struct only if the pattern matches                                         |
+| `global`                   | `bool`          | false    | false    | `false`                                     | If true, the trait will be implemented for the dynamic dispatch struct and you can use it with `Index` and `Entries`                             |
 
 ```rust
 use std::str::from_utf8;
@@ -176,6 +178,12 @@ use embed_it::Embed;
             name = "children", 
             factory = crate::Children, 
             regex = ".+_txt",
+        ), 
+        field(
+            name = global_children, 
+            factory = crate::Children, 
+            // the trait will be bound of the main trait
+            global,
         ), 
         field(
             name = "root_children", 
@@ -211,9 +219,9 @@ impl DirFieldFactory for Children {
 }
 
 # fn main() {
-use embed_it::{ Content };
+use embed_it::{ Content, Index };
 
-// the first field `as_str`
+// the field `as_str`
 use AsStrField;
 assert_eq!(Assets.hello().content(), b"hello");
 assert_eq!(Assets.one().content(), b"one");
@@ -226,13 +234,19 @@ assert_eq!(Assets.world().as_str().as_ref().unwrap().0, "world");
 // this is not compile due to `pattern` (`one_txt/hello` has no extension)
 // Assets.one_txt().as_str()
 
-// the second field `children`
+// the field `children`
 use ChildrenField;
 assert_eq!(Assets.one_txt().children(), &vec!["hello", "world"]);
 
-// the third field `root_children`
+// the field `root_children`
 use Root;
 assert_eq!(Assets.root_children(), &vec!["one_txt", "hello.txt", "one.txt", "world.txt"]);
+
+// the field `global_children`
+use GlobalChildrenField;
+// we can use it with dynamic dispatch
+assert_eq!(Assets.get("one_txt").unwrap().dir().unwrap().global_children(), &vec!["hello", "world"]);
+
 # }
 
 ```
@@ -343,7 +357,9 @@ mod lib {
 
 You can use any combination of compression traits on a `file`. It stores compressed content with provided algorythm.
 
-It might help you to use in a case like providing static content from a web server - you can analyze `Accept` header and use it to provide various `Content-Encoding` and body. See it in [examples](./examples/web)
+It might help you to use in a case like providing static content from a web server - you can analyze `Accept` header and use it to provide various `Content-Encoding` and body. See it in [examples](./examples/web).
+
+The feature **is not** designed to reduce the size, but to have the already compressed content. If you want to reduce bin size you should consider compressing entire binary.
 
 | Derive     | Required feature | Trait                     | Compression settings                          | 
 |------------|------------------|---------------------------|-----------------------------------------------| 

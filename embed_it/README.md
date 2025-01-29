@@ -357,7 +357,9 @@ mod lib {
 
 You can use any combination of compression traits on a `file`. It stores compressed content with provided algorythm.
 
-It might help you to use in a case like providing static content from a web server - you can analyze `Accept` header and use it to provide various `Content-Encoding` and body. See it in [examples](./examples/web)
+It might help you to use in a case like providing static content from a web server - you can analyze `Accept` header and use it to provide various `Content-Encoding` and body. See it in [examples](./examples/web).
+
+The feature **is not** designed to reduce the size, but to have the already compressed content. If you want to reduce bin size you should consider compressing entire binary.
 
 | Derive     | Required feature | Trait                     | Compression settings                          | 
 |------------|------------------|---------------------------|-----------------------------------------------| 
