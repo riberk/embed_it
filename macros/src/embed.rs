@@ -11,7 +11,6 @@ use attributes::{
     field::FieldTrait,
     file::FileTrait,
 };
-use convert_case::{Case, Casing};
 use darling::FromDeriveInput;
 use embed_it_utils::entry::{Entry, EntryKind};
 use proc_macro2::Span;
@@ -25,8 +24,8 @@ use crate::{
     embedded_traits::{
         EmbeddedTrait, MakeEmbeddedTraitImplementationError, TraitAttr, EMBEDED_TRAITS,
     },
-    fs::{FsInfo, ReadEntriesError},
-    utils::{anymap::AnyMap, unique_names::UniqueNames},
+    fs::{EntryIdent, EntryPath, FsInfo, ReadEntriesError, StrIdent},
+    utils::{anymap::AnyMap, unique_names::UniqueIdents},
 };
 
 pub(crate) fn impl_embed(input: DeriveInput) -> Result<proc_macro2::TokenStream, syn::Error> {
@@ -110,8 +109,7 @@ fn generate_factory_trait_definition(attr: &impl TraitAttr) -> proc_macro2::Toke
 
 pub struct EntryTokens {
     pub struct_path: syn::Path,
-    pub field_name: String,
-    pub field_ident: syn::Ident,
+    pub field: StrIdent,
     pub items: AnyMap,
     pub entry: Entry<FsInfo>,
 }
@@ -177,20 +175,7 @@ pub struct GenerateContext<'a> {
     /// An information about the file system entry
     pub entry: Entry<FsInfo>,
 
-    /// The unique names of the module/impl items
-    pub names: UniqueNames,
-
-    /// The string representation of [`Self::struct_ident``]
-    pub struct_name: String,
-
-    /// The identifier of the struct (PascalCase)
-    pub struct_ident: syn::Ident,
-
-    /// The string representation of [`Self::mod_ident``]
-    pub mod_name: String,
-
-    /// The identifier of the module and field (snake_case)
-    pub mod_ident: syn::Ident,
+    unique_idents: UniqueIdents,
 
     pub settings: &'a GenerationSettings,
 
@@ -216,28 +201,22 @@ impl<'a> GenerateContext<'a> {
 
     /// Creates the root-level context
     fn root(settings: &'a GenerationSettings) -> Result<Self, syn::Error> {
-        let entry = FsInfo::root_entry(&settings.root).map_err(|e| {
-            Error::new_spanned(
-                &settings.main_struct_ident,
-                format!(
-                    "Unable to read directory '{:?}' information: {e:?}",
-                    settings.root
-                ),
-            )
-        })?;
-
-        let mod_name = settings.main_struct_ident.to_string().to_case(Case::Snake);
-        let mod_ident = Ident::new(&mod_name, Span::call_site());
+        let entry = FsInfo::root_entry(&settings.root, settings.main_struct_ident.to_owned())
+            .map_err(|e| {
+                Error::new_spanned(
+                    &settings.main_struct_ident,
+                    format!(
+                        "Unable to read directory '{:?}' information: {e:?}",
+                        settings.root
+                    ),
+                )
+            })?;
 
         Ok(Self {
             level: 0,
             fields: settings.dir.fields().filter(entry.as_ref().value().path()),
             entry,
-            names: UniqueNames::default(),
-            struct_name: String::new(),
-            struct_ident: settings.main_struct_ident.clone(),
-            mod_name,
-            mod_ident,
+            unique_idents: UniqueIdents::default(),
             settings,
             items: Default::default(),
             parents: Default::default(),
@@ -246,14 +225,18 @@ impl<'a> GenerateContext<'a> {
 
     /// Creates a context for a child of the current
     fn child(&self, entry: Entry<FsInfo>) -> Self {
-        let struct_name = entry.as_ref().value().path().ident.to_case(Case::Pascal);
-        let struct_ident = Ident::new_raw(&struct_name, Span::call_site());
-        let mod_name = entry.as_ref().value().path().ident.to_case(Case::Snake);
-        let mod_ident = Ident::new_raw(&mod_name, Span::call_site());
         let level = self.level + 1;
         let mut parents = self.parents.clone();
         parents.push(ParentTokens {
-            struct_ident: self.struct_ident.clone(),
+            struct_ident: self
+                .entry
+                .as_ref()
+                .value()
+                .path()
+                .ident()
+                .struct_like()
+                .ident()
+                .clone(),
         });
 
         Self {
@@ -265,11 +248,7 @@ impl<'a> GenerateContext<'a> {
                 .value()
                 .filter(entry.as_ref().value().path()),
             entry,
-            names: UniqueNames::default(),
-            struct_name,
-            struct_ident,
-            mod_name,
-            mod_ident,
+            unique_idents: UniqueIdents::default(),
             settings: self.settings,
             items: Default::default(),
             parents,
@@ -303,8 +282,9 @@ impl<'a> GenerateContext<'a> {
                 .map_err(BuildStreamError::Dir)?,
         };
 
-        let struct_ident = &self.struct_ident;
-        let mod_ident = &self.mod_ident;
+        let path = self.entry.as_ref().value().path();
+        let struct_ident = path.ident().struct_like();
+        let mod_ident = path.ident().module_like();
 
         let traits = self.field_traits_implementation();
         let stream = quote! {
@@ -334,8 +314,7 @@ impl<'a> GenerateContext<'a> {
 
         parent_entries.push(EntryTokens {
             struct_path: struct_path.clone(),
-            field_name: self.mod_name,
-            field_ident: self.mod_ident,
+            field: mod_ident.clone(),
             items: self.items,
             entry: self.entry,
         });
@@ -368,7 +347,7 @@ impl<'a> GenerateContext<'a> {
             self.entry.as_ref().value().path().origin_path(),
             &self.settings.root,
             self.settings.with_extension,
-            &mut self.names,
+            &mut self.unique_idents,
         )
         .map_err(BuildDirError::ReadEntries)?;
         let mut modules = proc_macro2::TokenStream::new();
@@ -410,6 +389,30 @@ impl<'a> GenerateContext<'a> {
             EntryKind::Dir => self.settings.dir.is_trait_implemented(expected),
             EntryKind::File => self.settings.file.is_trait_implemented(expected),
         }
+    }
+
+    pub fn entry(&self) -> Entry<&FsInfo> {
+        self.entry.as_ref()
+    }
+
+    pub fn entry_info(&self) -> &FsInfo {
+        self.entry().value()
+    }
+
+    pub fn entry_path(&self) -> &EntryPath {
+        self.entry_info().path()
+    }
+
+    pub fn entry_ident(&self) -> &EntryIdent {
+        self.entry_path().ident()
+    }
+
+    pub fn entry_struct_ident(&self) -> &StrIdent {
+        self.entry_ident().struct_like()
+    }
+
+    pub fn entry_mod_ident(&self) -> &StrIdent {
+        self.entry_ident().module_like()
     }
 }
 

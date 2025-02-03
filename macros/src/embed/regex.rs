@@ -28,7 +28,7 @@ mod tests {
     use regex::Regex;
     use syn::parse_quote;
 
-    use crate::fs::EntryPath;
+    use crate::fs::{EntryIdent, EntryPath};
 
     use super::EntryRegex;
 
@@ -36,7 +36,7 @@ mod tests {
         EntryPath {
             origin: String::new(),
             relative: relative.to_owned(),
-            ident: Default::default(),
+            ident: EntryIdent::root(parse_quote!(Assets)),
             file_name: Default::default(),
             file_stem: Default::default(),
         }

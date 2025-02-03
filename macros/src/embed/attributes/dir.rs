@@ -273,15 +273,13 @@ impl TraitAttr for DirTrait {
         ctx: &GenerateContext<'_>,
         entries: &[EntryTokens],
     ) -> proc_macro2::TokenStream {
-        let struct_ident = &ctx.struct_ident;
+        let struct_ident = &ctx.entry_struct_ident();
         let methods = entries.iter().fold(quote! {}, |mut acc, entry| {
             let EntryTokens {
-                struct_path,
-                field_ident,
-                ..
+                struct_path, field, ..
             } = entry;
             acc.extend(quote! {
-                pub fn #field_ident(&self) -> &'static #struct_path {
+                pub fn #field(&self) -> &'static #struct_path {
                     &#struct_path
                 }
             });

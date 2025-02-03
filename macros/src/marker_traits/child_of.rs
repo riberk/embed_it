@@ -16,7 +16,7 @@ impl MarkerTrait for ChildOfMarker {
         _entries: &[EntryTokens],
         _index: &[IndexTokens],
     ) -> proc_macro2::TokenStream {
-        let struct_ident = &ctx.struct_ident;
+        let struct_ident = &ctx.entry_struct_ident();
 
         let mut stream = TokenStream::new();
         for (level, parent) in ctx.parents.iter().rev().enumerate() {

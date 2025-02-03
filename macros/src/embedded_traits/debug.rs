@@ -25,8 +25,8 @@ impl EmbeddedTrait for DebugTrait {
         match ctx.entry.kind() {
             EntryKind::Dir => {
                 let fields = entries.iter().fold(quote! {}, |mut accum, entry| {
-                    let field_name = &entry.field_name;
-                    let field_ident = &entry.field_ident;
+                    let field_name = entry.field.name();
+                    let field_ident = entry.field.ident();
                     if ctx.is_trait_implemented_for(entry.entry.kind(), &DebugTrait) {
                         accum.extend(quote! {
                             debug.field(#field_name, &self.#field_ident());
@@ -64,7 +64,7 @@ impl EmbeddedTrait for DebugTrait {
 }
 
 fn debug(ctx: &GenerateContext<'_>, fields: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
-    let struct_name = &ctx.struct_name;
+    let struct_name = ctx.entry_struct_ident().name();
 
     quote! {
         fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {

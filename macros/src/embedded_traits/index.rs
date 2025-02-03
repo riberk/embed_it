@@ -38,7 +38,7 @@ impl EmbeddedTrait for IndexTrait {
         let entry_path = &ctx.settings.entry_path(ctx.level);
         let index_len = index.len();
 
-        let struct_ident = &ctx.struct_ident;
+        let struct_ident = &ctx.entry_struct_ident();
         let entry_struct_path = ctx.settings.dir_entry_param(ctx.level);
         let index = index
             .iter()

@@ -191,7 +191,7 @@ pub trait EmbeddedTrait: Send + Sync + Debug {
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         let trait_path = self.path(ctx.level, ctx.settings);
         let body = self.impl_body(ctx, entries, index)?;
-        let struct_ident = &ctx.struct_ident;
+        let struct_ident = &ctx.entry_struct_ident();
 
         Ok(quote! {
             #[automatically_derived]
@@ -290,7 +290,7 @@ pub trait TraitAttr {
         let trait_path = ctx.make_level_path(trait_ident.to_owned());
         let entry_trait_path = ctx.make_level_path(entry_trait_ident.to_owned());
         let struct_impl = self.struct_impl(ctx, entries);
-        let struct_ident = &ctx.struct_ident;
+        let struct_ident = &ctx.entry_struct_ident();
         impl_stream.extend(quote! {
             #struct_impl
 

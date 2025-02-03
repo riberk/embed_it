@@ -96,7 +96,7 @@ impl FieldTrait {
             ..
         } = self;
 
-        let struct_ident = &ctx.struct_ident;
+        let struct_ident = &ctx.entry_struct_ident();
         let factory = fix_path(factory, ctx.level);
         let trait_path = ctx.make_level_path(trait_ident.clone());
         let factory_trait = ctx
