@@ -24,7 +24,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: "clippy"
       - uses: taiki-e/install-action@nextest
-      - run: cargo clippy --verbose --all-features -- -D warnings
+      - run: cargo clippy --verbose --all-features -- -D warnings -A clippy::needless_doctest_main
       - run: cargo build --verbose --all-features
       - run: cargo nextest run --verbose --all-features
         env: { RUST_BACKTRACE: 1 }
