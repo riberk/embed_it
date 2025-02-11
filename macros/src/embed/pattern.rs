@@ -3,7 +3,7 @@ use glob::Pattern;
 
 use crate::fs::EntryPath;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Display)]
 pub struct EntryPattern(Pattern);
 
 impl FromMeta for EntryPattern {
@@ -17,6 +17,11 @@ impl FromMeta for EntryPattern {
 }
 
 impl EntryPattern {
+    #[cfg(test)]
+    pub fn new(pattern: Pattern) -> Self {
+        Self(pattern)
+    }
+
     pub fn is_match(&self, path: &EntryPath) -> bool {
         self.0.matches_path(path.relative_path())
     }

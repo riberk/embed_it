@@ -7,21 +7,17 @@ use quote::quote;
 use syn::{parse_quote, Ident, TypeParamBound};
 
 use crate::{
-    embed::{
-        bool_like_enum::BoolLikeEnum, fix_path, pattern::EntryPattern, regex::EntryRegex,
-        GenerateContext,
-    },
+    embed::{bool_like_enum::BoolLikeEnum, fix_path, GenerateContext},
     embedded_traits::TraitAttr,
     fs::EntryPath,
 };
 
-use super::global_field::GlobalField;
+use super::{global_field::GlobalField, include::Include};
 
 #[derive(Debug, FromMeta)]
 pub struct FieldAttr {
-    regex: Option<EntryRegex>,
-
-    pattern: Option<EntryPattern>,
+    #[darling(flatten, default)]
+    include: Include,
 
     factory: syn::Path,
 
@@ -38,8 +34,7 @@ pub struct FieldTrait {
     field_ident: syn::Ident,
     trait_ident: syn::Ident,
     factory: syn::Path,
-    regex: Option<EntryRegex>,
-    pattern: Option<EntryPattern>,
+    include: Include,
     global: GlobalField,
 }
 
@@ -53,23 +48,14 @@ impl FieldTrait {
         Self {
             field_ident: field_attr.name,
             trait_ident,
-            regex: field_attr.regex,
-            pattern: field_attr.pattern,
+            include: field_attr.include,
             factory: field_attr.factory,
             global: field_attr.global,
         }
     }
 
     pub fn is_match(&self, path: &EntryPath) -> bool {
-        self.regex
-            .as_ref()
-            .map(|v| v.is_match(path))
-            .unwrap_or(true)
-            && self
-                .pattern
-                .as_ref()
-                .map(|v| v.is_match(path))
-                .unwrap_or(true)
+        self.include.is_match(path)
     }
 
     pub fn definition(&self, generate_for: &impl TraitAttr) -> proc_macro2::TokenStream {
@@ -219,5 +205,21 @@ impl FieldTraits {
         self.by_trait_name
             .get(ident)
             .and_then(|&idx| self.traits.get(idx))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use darling::FromMeta;
+    use syn::parse_quote;
+
+    use super::FieldAttr;
+
+    
+    #[test]
+    fn parse_meta_include() {
+        let field = FieldAttr::from_meta(&parse_quote!(field(name = field_name, factory = super::Factory, pattern = "pattern123", regex = "regex123"))).unwrap();
+        assert_eq!(field.include.pattern().unwrap().to_string(), "pattern123".to_owned());
+        assert_eq!(field.include.regex().unwrap().to_string(), "regex123".to_owned());
     }
 }
