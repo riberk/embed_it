@@ -215,11 +215,22 @@ mod tests {
 
     use super::FieldAttr;
 
-    
     #[test]
     fn parse_meta_include() {
-        let field = FieldAttr::from_meta(&parse_quote!(field(name = field_name, factory = super::Factory, pattern = "pattern123", regex = "regex123"))).unwrap();
-        assert_eq!(field.include.pattern().unwrap().to_string(), "pattern123".to_owned());
-        assert_eq!(field.include.regex().unwrap().to_string(), "regex123".to_owned());
+        let field = FieldAttr::from_meta(&parse_quote!(field(
+            name = field_name,
+            factory = super::Factory,
+            pattern = "pattern123",
+            regex = "regex123"
+        )))
+        .unwrap();
+        assert_eq!(
+            field.include.pattern().unwrap().to_string(),
+            "pattern123".to_owned()
+        );
+        assert_eq!(
+            field.include.regex().unwrap().to_string(),
+            "regex123".to_owned()
+        );
     }
 }

@@ -17,12 +17,11 @@ impl FromMeta for EntryRegex {
 }
 
 impl EntryRegex {
-
     #[cfg(test)]
     pub fn new(regex: Regex) -> Self {
         Self(regex)
     }
-    
+
     pub fn is_match(&self, path: &EntryPath) -> bool {
         self.0.is_match(&path.relative)
     }

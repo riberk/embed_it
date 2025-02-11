@@ -24,12 +24,12 @@ impl Include {
                 .map(|v| v.is_match(path))
                 .unwrap_or(true)
     }
-    
+
     #[cfg(test)]
     pub fn regex(&self) -> Option<&EntryRegex> {
         self.regex.as_ref()
     }
-    
+
     #[cfg(test)]
     pub fn pattern(&self) -> Option<&EntryPattern> {
         self.pattern.as_ref()

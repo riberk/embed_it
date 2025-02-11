@@ -5,6 +5,6 @@ pub mod entry;
 pub mod field;
 pub mod file;
 pub mod global_field;
+pub mod include;
 pub mod support_alt_separator;
 pub mod with_extension;
-pub mod include;
