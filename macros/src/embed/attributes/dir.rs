@@ -17,6 +17,7 @@ use crate::{
 use super::{
     derive_default_traits::DeriveDefaultTraits,
     field::{CreateFieldTraitsError, FieldAttr, FieldTraits},
+    path_match::{PathMatcher, PathMatcherAttr},
 };
 
 #[derive(Debug, FromMeta, Default)]
@@ -38,6 +39,9 @@ pub struct DirAttr {
 
     #[darling(default, multiple, rename = "mark")]
     markers: Vec<DirMarkerTrait>,
+
+    #[darling(default, flatten)]
+    matcher: PathMatcherAttr,
 }
 
 #[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
@@ -152,6 +156,7 @@ pub struct DirTrait {
     field_factory_trait_name: Ident,
     fields: FieldTraits,
     markers: Vec<&'static dyn MarkerTrait>,
+    matcher: PathMatcher,
 }
 
 impl MainTrait for DirTrait {
@@ -181,6 +186,7 @@ impl From<MainTraitData> for DirTrait {
             field_factory_trait_name,
             fields,
             markers,
+            matcher,
         } = value;
         Self {
             embedded_traits,
@@ -188,6 +194,7 @@ impl From<MainTraitData> for DirTrait {
             field_factory_trait_name,
             fields,
             markers,
+            matcher,
         }
     }
 }
@@ -211,6 +218,7 @@ impl TryFrom<DirAttr> for DirTrait {
             value.trait_name,
             value.field_factory_trait_name,
             value.fields,
+            value.matcher,
         )
     }
 }
@@ -242,6 +250,10 @@ impl TraitAttr for DirTrait {
 
     fn entry_struct_ident<'a>(&self, entry: &'a super::entry::EntryStruct) -> &'a Ident {
         entry.dir_struct_ident()
+    }
+
+    fn should_be_included(&self, path: &crate::fs::EntryPath) -> bool {
+        self.matcher.should_be_included(path)
     }
 
     fn struct_impl(

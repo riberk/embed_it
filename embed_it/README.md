@@ -28,7 +28,7 @@ use embed_it::Embed;
 )]
 pub struct Assets;
 
-# fn main() {
+fn main() {
     use embed_it::{Content, EntryPath, EmbeddedPath, Index};
     assert_eq!(Assets.hello().content(), b"hello");
     assert_eq!(Assets.hello().path(), &EmbeddedPath::new("hello.txt", "hello.txt", "hello"));
@@ -55,10 +55,10 @@ pub struct Assets;
 
     // We can use Windows-style paths due to the `support_alt_separator` attribute
     assert_eq!(
-        Assets.get("one_txt\\hello").unwrap().file().unwrap().content(),
+        Assets.get("one_txt\\hello").unwrap().file().unwrap().content(), 
         b"hello"
     );
-# }
+}
 ```
 
 ## Known issues
@@ -103,6 +103,8 @@ The main attribute
 | `field_factory_trait_name` | `Ident`          | false    | false    | `DirFieldFactory`                            | Specifies the trait name that will be used for a directory field factory                                                                                                                       |
 | `derive`                   | `Vec<DirTrait>`  | true     | false    | `Path`, `Entries`, `Index`, `Meta`, `Debug` </br> `DirectChildCount`, `RecursiveChildCount` | What traits will be derived for every directory and what bounds will be set for the `Dir` trait. See also [EmbeddedTraits list](#EmbeddedTraits_list) and [Hash traits](#HashTraits) |
 | `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                                     | Adds additional fields for a directory. See more in the [Field Attr](#FieldAttr) section                                                                                                            |
+| `include`                  | `PathMatchSet`   | true     | false    | `PathMatchSet::Any`                          | See more in the [Include / Exclude](#IncludeExclude) section                                                                                                |
+| `exclude`                  | `PathMatchSet`   | true     | false    | `PathMatchSet::None`                         | See more in the [Include / Exclude](#IncludeExclude) section                                                                                                |
 
 ### <a name="FileAttr"></a> FileAttr
 
@@ -113,6 +115,8 @@ The main attribute
 | `field_factory_trait_name` | `Ident`          | false    | false    | `FileFieldFactory`                 | What trait name will be used for a directory field factory                                                                                                                                                              |
 | `derive`                   | `Vec<DirTrait>`  | true     | false    | `Path`, `Meta`, `Debug`, `Content` | What traits will be derived for every directory and what bounds will be set for a Dir trait. See also [EmbeddedTraits list](#EmbeddedTraits_list), [Hash traits](#HashTraits), [Compression traits](#CompressionTraits) |
 | `field`                    | `Vec<FieldAttr>` | true     | false    | `vec![]`                           | Adds additional fields for a file. See more in the [Field Attr](#FieldAttr) section                                                                                                                                     |
+| `include`                  | `PathMatchSet`   | true     | false    | `PathMatchSet::Any`                          | See more in the [Include / Exclude](#IncludeExclude) section                                                                                                |
+| `exclude`                  | `PathMatchSet`   | true     | false    | `PathMatchSet::None`                         | See more in the [Include / Exclude](#IncludeExclude) section                                                                                                |
 
 ### <a name="EmbeddedTraits_list"></a> EmbeddedTraits list
 
@@ -218,36 +222,76 @@ impl DirFieldFactory for Children {
     }
 }
 
-# fn main() {
-use embed_it::{ Content, Index };
+fn main() {
+    use embed_it::{ Content, Index };
 
-// the field `as_str`
-use AsStrField;
-assert_eq!(Assets.hello().content(), b"hello");
-assert_eq!(Assets.one().content(), b"one");
-assert_eq!(Assets.world().content(), b"world");
+    // the field `as_str`
+    use AsStrField;
+    assert_eq!(Assets.hello().content(), b"hello");
+    assert_eq!(Assets.one().content(), b"one");
+    assert_eq!(Assets.world().content(), b"world");
 
-assert_eq!(Assets.hello().as_str().as_ref().unwrap().0, "hello");
-assert_eq!(Assets.one().as_str().as_ref().unwrap().0, "one");
-assert_eq!(Assets.world().as_str().as_ref().unwrap().0, "world");
+    assert_eq!(Assets.hello().as_str().as_ref().unwrap().0, "hello");
+    assert_eq!(Assets.one().as_str().as_ref().unwrap().0, "one");
+    assert_eq!(Assets.world().as_str().as_ref().unwrap().0, "world");
 
-// this is not compile due to `pattern` (`one_txt/hello` has no extension)
-// Assets.one_txt().as_str()
+    // this is not compile due to `pattern` (`one_txt/hello` has no extension)
+    // Assets.one_txt().as_str()
 
-// the field `children`
-use ChildrenField;
-assert_eq!(Assets.one_txt().children(), &vec!["hello", "world"]);
+    // the field `children`
+    use ChildrenField;
+    assert_eq!(Assets.one_txt().children(), &vec!["hello", "world"]);
 
-// the field `root_children`
-use Root;
-assert_eq!(Assets.root_children(), &vec!["one_txt", "hello.txt", "one.txt", "world.txt"]);
+    // the field `root_children`
+    use Root;
+    assert_eq!(Assets.root_children(), &vec!["one_txt", "hello.txt", "one.txt", "world.txt"]);
 
-// the field `global_children`
-use GlobalChildrenField;
-// we can use it with dynamic dispatch
-assert_eq!(Assets.get("one_txt").unwrap().dir().unwrap().global_children(), &vec!["hello", "world"]);
+    // the field `global_children`
+    use GlobalChildrenField;
+    // we can use it with dynamic dispatch
+    assert_eq!(
+        Assets.get("one_txt").unwrap().dir().unwrap().global_children(), 
+        &vec!["hello", "world"]
+    );
+}
 
-# }
+```
+
+### <a name="IncludeExclude"></a> Include / Exclude
+
+You can control which files / directories will be included into a struct with multiple `include(pattern = "*.txt", regex = ".*\\.txt$")` and `exclude(pattern = "*.txt", regex = ".*\\.txt$")` attributes on [file](#FileAttr) and [dir](#DirAttr). 
+Matching is done on relative file paths, via either a glob pattern, a regular expression or both. `exclude` attributes have higher priority than include attributes.
+
+```rust
+use embed_it::Embed;
+
+#[derive(embed_it::Embed)]
+#[embed(
+    path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
+    dir(
+        derive_default_traits = false,
+        exclude(pattern = "*_txt"),
+        derive(Path),
+        derive(Index),
+    ),
+    file(
+        derive_default_traits = false,
+        include(regex = ".*e.*"),
+        derive(Path),
+    )
+)]
+pub struct Assets;
+
+fn main() {
+
+    use embed_it::Index;
+    assert!(Assets.get("one.txt").is_some());
+    assert!(Assets.get("hello.txt").is_some());
+
+    assert!(Assets.get("world.txt").is_none());
+    assert!(Assets.get("one_txt").is_none());
+
+}
 
 ```
 
@@ -317,37 +361,37 @@ mod lib {
     )]
     pub struct Assets;
 
-    # fn main() {
-    use embed_it::{ 
-        Md5Hash, 
-        Sha1Hash, 
-        Sha2_224Hash, 
-        Sha2_256Hash, 
-        Sha2_384Hash, 
-        Sha2_512Hash,
-        Sha3_224Hash, 
-        Sha3_256Hash, 
-        Sha3_384Hash, 
-        Sha3_512Hash,
-        Blake3_256Hash,
-        Entries
-    };
+    fn main() {
+        use embed_it::{ 
+            Md5Hash, 
+            Sha1Hash, 
+            Sha2_224Hash, 
+            Sha2_256Hash, 
+            Sha2_384Hash, 
+            Sha2_512Hash,
+            Sha3_224Hash, 
+            Sha3_256Hash, 
+            Sha3_384Hash, 
+            Sha3_512Hash,
+            Blake3_256Hash,
+            Entries
+        };
 
-    use hex_literal::hex;
+        use hex_literal::hex;
 
-    assert_eq!(Assets.md5(), &hex!("56e71a41c76b1544c52477adf4c8e2f7"));
-    assert_eq!(Assets.sha1(), &hex!("26da80338f55108be5bcce49285a4154f6705599"));
-    assert_eq!(Assets.sha2_224(), &hex!("360c16e2d8135a337cc6ddf4134ec9cc69dd65b779db2a2807f941e4"));
-    assert_eq!(Assets.sha2_256(), &hex!("e16b758a01129c86f871818a7b4e31c88a3c6b69d9c8319bcbc881b58f067b25"));
-    assert_eq!(Assets.sha2_384(), &hex!("de4656a27347eee72aea1d15e85f20439673709cde5339772660bbd9d800bbde9f637eb3505f572140432625f3948175"));
-    assert_eq!(Assets.sha2_512(), &hex!("bc1673b560316c6586fa1ec98ca5df3e303b66ddae944b05c71314806f88bd4b8f4c7832dfb7dd729eaca191b7142936d21bd07f750c9bc35d67f218e51bbaa4"));
-    assert_eq!(Assets.sha3_224(), &hex!("6949265b40fa55e0c194e3591f90e6cbf0ac100d7ed32e71d6e1e753"));
-    assert_eq!(Assets.sha3_256(), &hex!("a2d99103dc2d1967fb05c4de99a1432e9afb1f5acc698fefb2112ce7fb9335c4"));
-    assert_eq!(Assets.sha3_384(), &hex!("cf1f50cb53dc61b3519227887bfb20230b6878d32b10c5a9bfe016095aaecc593e612a165c89488109da62138a7214d8"));
-    assert_eq!(Assets.sha3_512(), &hex!("aeff4601a53fecdad418f3245676398719d507bd7b971098ad3f4c2d495c2cc96faf022f481c0bebc0632492abd8eb9fe9f8af6d25664f33d61ff316d269682a"));
-    assert_eq!(Assets.blake3_256(), &hex!("b5947e2140b0fe744b1afe9a9f9031e72571c85db079413a67b4a9309f581de7"));
+        assert_eq!(Assets.md5(), &hex!("56e71a41c76b1544c52477adf4c8e2f7"));
+        assert_eq!(Assets.sha1(), &hex!("26da80338f55108be5bcce49285a4154f6705599"));
+        assert_eq!(Assets.sha2_224(), &hex!("360c16e2d8135a337cc6ddf4134ec9cc69dd65b779db2a2807f941e4"));
+        assert_eq!(Assets.sha2_256(), &hex!("e16b758a01129c86f871818a7b4e31c88a3c6b69d9c8319bcbc881b58f067b25"));
+        assert_eq!(Assets.sha2_384(), &hex!("de4656a27347eee72aea1d15e85f20439673709cde5339772660bbd9d800bbde9f637eb3505f572140432625f3948175"));
+        assert_eq!(Assets.sha2_512(), &hex!("bc1673b560316c6586fa1ec98ca5df3e303b66ddae944b05c71314806f88bd4b8f4c7832dfb7dd729eaca191b7142936d21bd07f750c9bc35d67f218e51bbaa4"));
+        assert_eq!(Assets.sha3_224(), &hex!("6949265b40fa55e0c194e3591f90e6cbf0ac100d7ed32e71d6e1e753"));
+        assert_eq!(Assets.sha3_256(), &hex!("a2d99103dc2d1967fb05c4de99a1432e9afb1f5acc698fefb2112ce7fb9335c4"));
+        assert_eq!(Assets.sha3_384(), &hex!("cf1f50cb53dc61b3519227887bfb20230b6878d32b10c5a9bfe016095aaecc593e612a165c89488109da62138a7214d8"));
+        assert_eq!(Assets.sha3_512(), &hex!("aeff4601a53fecdad418f3245676398719d507bd7b971098ad3f4c2d495c2cc96faf022f481c0bebc0632492abd8eb9fe9f8af6d25664f33d61ff316d269682a"));
+        assert_eq!(Assets.blake3_256(), &hex!("b5947e2140b0fe744b1afe9a9f9031e72571c85db079413a67b4a9309f581de7"));
 
-    # }
+    }
 }
 
 
@@ -391,20 +435,21 @@ mod lib {
     )]
     pub struct Assets;
 
-    # fn main() {
-    use embed_it::{ 
-        BrotliContent, 
-        GzipContent, 
-        ZstdContent, 
-    };
+    #[test]
+    fn main() {
+        use embed_it::{ 
+            BrotliContent, 
+            GzipContent, 
+            ZstdContent, 
+        };
 
-    use hex_literal::hex;
+        use hex_literal::hex;
 
-    assert_eq!(Assets.hello().gzip_content(), &hex!("1f8b08000000000002ffcb48cdc9c9070086a6103605000000"));
-    assert_eq!(Assets.hello().zstd_content(), &hex!("28b52ffd008829000068656c6c6f"));
-    assert_eq!(Assets.hello().brotli_content(), &hex!("0b028068656c6c6f03"));
+        assert_eq!(Assets.hello().gzip_content(), &hex!("1f8b08000000000002ffcb48cdc9c9070086a6103605000000"));
+        assert_eq!(Assets.hello().zstd_content(), &hex!("28b52ffd008829000068656c6c6f"));
+        assert_eq!(Assets.hello().brotli_content(), &hex!("0b028068656c6c6f03"));
 
-    # }
+    }
 }
 
 
@@ -420,7 +465,7 @@ use embed_it::Embed;
     dir(
         // trait name for directories (default `Dir`)
         trait_name = AssetsDir, 
-        
+    
         // trait name for directory field's factories (default `DirFieldFactory`)
         field_factory_trait_name = AssetsDirFieldFactory, 
         
@@ -541,7 +586,7 @@ impl AssetsFileFieldFactory for AsStr {
     }
 }
 
-# fn main() {
+fn main() {
     use embed_it::{Content, EntryPath, Meta, Entries, Entry};
     assert_eq!(Assets.hello_txt().as_str(), &Some("hello"));
     assert_eq!(Assets.one_txt_1().as_str(), &Some("one"));
@@ -559,7 +604,7 @@ impl AssetsFileFieldFactory for AsStr {
         println!("{:#?}", entry);
     }
 
-# }
+}
 ```
 
 ## How does fs-entry's name turn into Rust identifiers?

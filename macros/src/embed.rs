@@ -270,6 +270,18 @@ impl<'a> GenerateContext<'a> {
         parent_entries: &mut Vec<EntryTokens>,
         parent_index: &mut Vec<IndexTokens>,
     ) -> Result<proc_macro2::TokenStream, BuildStreamError> {
+        let should_be_included = self
+            .entry_trait()
+            .map(
+                |d| d.should_be_included(self.entry_path()),
+                |f| f.should_be_included(self.entry_path()),
+            )
+            .value();
+
+        if !should_be_included {
+            return Ok(Default::default());
+        }
+
         let mut entries = Vec::new();
         let mut index = Vec::new();
 
@@ -835,5 +847,52 @@ mod tests {
         let err = impl_embed(input).unwrap_err().to_string();
 
         assert_eq!(&err, "unable to parse the `file` attribute: unable to resolve embedded trait: feature 'md5' must be enabled to use 'Hash(md5)'");
+    }
+
+    #[test]
+    fn include_exclude() {
+        let current_dir = tests_dir().join(fn_name!());
+        remove_and_create_dir_all(&current_dir);
+        create_file(current_dir.join("hello.txt"), b"hello");
+        create_file(current_dir.join("world.txt"), b"world");
+        create_file(current_dir.join("one.txt"), b"one");
+        create_file(current_dir.join("two.svg"), b"two");
+        create_file(current_dir.join("three.svg"), b"three");
+
+        let subdir1 = current_dir.join("subdir_q");
+        create_dir_all(&subdir1);
+        create_file(subdir1.join("hello"), b"hello.txt");
+        create_file(subdir1.join("world"), b"world");
+
+        let subdir2 = current_dir.join("subdir_w");
+        create_dir_all(&subdir2);
+        create_file(subdir2.join("hello"), b"hello.svg");
+        create_file(subdir2.join("world"), b"world.txt");
+
+        let subdir3 = current_dir.join("subdir_e");
+        create_dir_all(&subdir3);
+        create_file(subdir3.join("hello"), b"hello.svg");
+        create_file(subdir3.join("world"), b"world.txt");
+
+        let path = current_dir.to_str().unwrap();
+        let input = derive_input(quote! {
+            #[derive(embed_it::Embed)]
+            #[embed(
+                path = #path,
+                file(
+                    derive_default_traits = false,
+                    include(pattern = "*.svg"),
+                    include(pattern = "*.txt"),
+                    exclude(regex = ".*world.*")
+                ),
+                dir(
+                    derive_default_traits = false,
+                    include(regex = "^$"),
+                    include(regex = "^subdir_(q|w)"),
+                ),
+            )]
+            pub struct Assets;
+        });
+        impl_embed(input).print_to_std_out();
     }
 }

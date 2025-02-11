@@ -3,7 +3,7 @@ use glob::Pattern;
 
 use crate::fs::EntryPath;
 
-#[derive(Debug, Clone, derive_more::Display)]
+#[derive(Debug, Clone, derive_more::Display, PartialEq, Eq)]
 pub struct EntryPattern(Pattern);
 
 impl FromMeta for EntryPattern {

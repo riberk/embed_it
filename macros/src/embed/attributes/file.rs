@@ -22,6 +22,7 @@ use super::{
     derive_default_traits::DeriveDefaultTraits,
     entry::EntryStruct,
     field::{CreateFieldTraitsError, FieldAttr, FieldTraits},
+    path_match::{PathMatcher, PathMatcherAttr},
 };
 
 #[derive(Debug, FromMeta, Default)]
@@ -43,6 +44,9 @@ pub struct FileAttr {
 
     #[darling(default, multiple, rename = "mark")]
     markers: Vec<FileMarkerTrait>,
+
+    #[darling(default, flatten)]
+    matcher: PathMatcherAttr,
 }
 
 #[derive(Debug, FromMeta, Clone, Copy, PartialEq, Eq)]
@@ -164,6 +168,7 @@ pub struct FileTrait {
     markers: Vec<&'static dyn MarkerTrait>,
     trait_name: Ident,
     field_factory_trait_name: Ident,
+    matcher: PathMatcher,
 }
 
 #[derive(Debug, derive_more::Display, derive_more::From)]
@@ -198,6 +203,7 @@ impl From<MainTraitData> for FileTrait {
             field_factory_trait_name,
             fields,
             markers,
+            matcher,
         } = value;
         Self {
             fields,
@@ -205,6 +211,7 @@ impl From<MainTraitData> for FileTrait {
             trait_name,
             field_factory_trait_name,
             markers,
+            matcher,
         }
     }
 }
@@ -219,6 +226,7 @@ impl TryFrom<FileAttr> for FileTrait {
             value.trait_name,
             value.field_factory_trait_name,
             value.fields,
+            value.matcher,
         )
     }
 }
@@ -250,6 +258,10 @@ impl TraitAttr for FileTrait {
 
     fn entry_struct_ident<'a>(&self, entry: &'a EntryStruct) -> &'a Ident {
         entry.file_struct_ident()
+    }
+
+    fn should_be_included(&self, path: &crate::fs::EntryPath) -> bool {
+        self.matcher.should_be_included(path)
     }
 
     fn struct_impl(&self, _: &GenerateContext<'_>, _: &[EntryTokens]) -> proc_macro2::TokenStream {

@@ -6,6 +6,14 @@ use crate::fs::EntryPath;
 #[derive(Debug, Clone, derive_more::Display)]
 pub struct EntryRegex(Regex);
 
+impl PartialEq for EntryRegex {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.as_str() == other.0.as_str()
+    }
+}
+
+impl Eq for EntryRegex {}
+
 impl FromMeta for EntryRegex {
     fn from_string(value: &str) -> darling::Result<Self> {
         Regex::new(value)

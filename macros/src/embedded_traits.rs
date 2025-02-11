@@ -31,6 +31,7 @@ use crate::{
         bool_like_enum::BoolLikeEnum,
         EntryTokens, GenerateContext, IndexTokens,
     },
+    fs::EntryPath,
     marker_traits::MarkerTrait,
 };
 
@@ -215,6 +216,8 @@ pub trait TraitAttr {
     fn entry_trait_ident<'a>(&self, entry: &'a EntryStruct) -> &'a Ident;
 
     fn entry_struct_ident<'a>(&self, entry: &'a EntryStruct) -> &'a Ident;
+
+    fn should_be_included(&self, path: &EntryPath) -> bool;
 
     fn struct_impl(
         &self,

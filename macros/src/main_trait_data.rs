@@ -5,6 +5,7 @@ use crate::{
     embed::attributes::{
         derive_default_traits::DeriveDefaultTraits,
         field::{CreateFieldTraitsError, FieldAttr, FieldTraits},
+        path_match::{PathMatcher, PathMatcherAttr},
     },
     embedded_traits::{EmbeddedTrait, EnabledTraits},
     marker_traits::MarkerTrait,
@@ -16,6 +17,7 @@ pub struct MainTraitData {
     pub field_factory_trait_name: Ident,
     pub fields: FieldTraits,
     pub markers: Vec<&'static dyn MarkerTrait>,
+    pub matcher: PathMatcher,
 }
 
 pub trait MainTrait: Sized + 'static + From<MainTraitData> {
@@ -34,6 +36,7 @@ pub trait MainTrait: Sized + 'static + From<MainTraitData> {
         trait_name: Option<Ident>,
         field_factory_trait_name: Option<Ident>,
         fields: Vec<FieldAttr>,
+        matcher: PathMatcherAttr,
     ) -> Result<Self, Self::Error> {
         let enabled_traits =
             EnabledTraits::create(derive_default_traits, embedded_traits, Self::DEFAULT_TRAITS)?;
@@ -51,6 +54,7 @@ pub trait MainTrait: Sized + 'static + From<MainTraitData> {
             trait_name,
             field_factory_trait_name,
             markers: markers.into_iter().map(Into::into).collect(),
+            matcher: matcher.into(),
         };
         Ok(res.into())
     }

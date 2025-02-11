@@ -12,12 +12,12 @@ use crate::{
     fs::EntryPath,
 };
 
-use super::{global_field::GlobalField, include::Include};
+use super::{global_field::GlobalField, path_match::PathMatch};
 
 #[derive(Debug, FromMeta)]
 pub struct FieldAttr {
     #[darling(flatten, default)]
-    include: Include,
+    include: PathMatch,
 
     factory: syn::Path,
 
@@ -34,7 +34,7 @@ pub struct FieldTrait {
     field_ident: syn::Ident,
     trait_ident: syn::Ident,
     factory: syn::Path,
-    include: Include,
+    include: PathMatch,
     global: GlobalField,
 }
 
