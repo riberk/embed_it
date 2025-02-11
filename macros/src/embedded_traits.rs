@@ -14,7 +14,7 @@ use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
     error::Error,
-    fmt::{Debug, Display},
+    fmt::Debug,
     sync::LazyLock,
 };
 
@@ -128,17 +128,9 @@ impl AllEmbededTraits {
 
 pub static EMBEDED_TRAITS: LazyLock<AllEmbededTraits> = LazyLock::new(AllEmbededTraits::default);
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum ResolveEmbeddedTraitError {
     FeatureDisabled(FeatureDisabled),
-}
-
-impl Display for ResolveEmbeddedTraitError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ResolveEmbeddedTraitError::FeatureDisabled(e) => write!(f, "{e}"),
-        }
-    }
 }
 
 impl From<FeatureDisabled> for ResolveEmbeddedTraitError {
@@ -147,20 +139,11 @@ impl From<FeatureDisabled> for ResolveEmbeddedTraitError {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, derive_more::Display)]
+#[display("feature '{}' must be enabled to use '{}'", self.feature, self.requested)]
 pub struct FeatureDisabled {
     requested: &'static str,
     feature: &'static str,
-}
-
-impl Display for FeatureDisabled {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self { requested, feature } = self;
-        write!(
-            f,
-            "Feature '{feature}' must be enabled to use '{requested}'"
-        )
-    }
 }
 
 pub trait EmbeddedTrait: Send + Sync + Debug {

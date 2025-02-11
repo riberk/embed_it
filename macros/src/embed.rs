@@ -834,6 +834,6 @@ mod tests {
 
         let err = impl_embed(input).unwrap_err().to_string();
 
-        assert_eq!(&err, "Unable to parse `file` attribute: Unable to resolve embedded trait: Feature 'md5' must be enabled to use 'Hash(md5)'");
+        assert_eq!(&err, "unable to parse the `file` attribute: unable to resolve embedded trait: feature 'md5' must be enabled to use 'Hash(md5)'");
     }
 }

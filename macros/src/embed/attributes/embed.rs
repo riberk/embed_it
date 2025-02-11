@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::path::PathBuf;
 
 use crate::embed::GenerateContext;
@@ -64,36 +63,22 @@ pub struct GenerationSettings {
     pub entry: EntryStruct,
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum GenerateFirldTraitsDefinitionError {
     DuplicateTraitWithDifferentMethod(SameTraitName),
 }
 
-impl Display for GenerateFirldTraitsDefinitionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GenerateFirldTraitsDefinitionError::DuplicateTraitWithDifferentMethod(e) => {
-                write!(f, "{e}")
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
+#[display(
+    "the same trait name '{}' for 'dir' '{}' field and 'file' {} field", 
+    self.trait_name,
+    self.dir_field_name,
+    self.file_field_name,
+)]
 pub struct SameTraitName {
     trait_name: Ident,
     file_field_name: Ident,
     dir_field_name: Ident,
-}
-
-impl Display for SameTraitName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "The same trait name '{}' for 'dir' '{}' field and 'file' {} field",
-            self.trait_name, self.dir_field_name, self.file_field_name
-        )
-    }
 }
 
 impl GenerationSettings {
@@ -155,23 +140,16 @@ impl GenerationSettings {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum ParseEmbedInputError {
+    #[display("unable to expand the path: {_0}")]
     ExpandPath(ExpandPathError),
-    ParseDir(ParseDirAttrError),
-    ParseFile(ParseFileAttrError),
-}
 
-impl Display for ParseEmbedInputError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseEmbedInputError::ExpandPath(e) => write!(f, "Unable to expand a path: {e}"),
-            ParseEmbedInputError::ParseDir(e) => write!(f, "Unable to parse `dir` attribute: {e}"),
-            ParseEmbedInputError::ParseFile(e) => {
-                write!(f, "Unable to parse `file` attribute: {e}")
-            }
-        }
-    }
+    #[display("unable to parse the `dir` attribute: {_0}")]
+    ParseDir(ParseDirAttrError),
+
+    #[display("unable to parse the `file` attribute: {_0}")]
+    ParseFile(ParseFileAttrError),
 }
 
 impl TryFrom<EmbedInput> for GenerationSettings {

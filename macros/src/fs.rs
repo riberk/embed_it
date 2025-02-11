@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     env::VarError,
-    fmt::{Debug, Display},
+    fmt::Debug,
     fs::read_dir,
     io,
     path::{Path, PathBuf},
@@ -113,27 +113,19 @@ pub enum CreateRootEntryError {
     UnabeToReadMetadata(io::Error),
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum ReadEntriesError {
+    #[display("unable to read a dir: {_0}")]
     UnabeToReadDir(io::Error),
-    UnabeToReadEntry(io::Error),
-    UnableToNormalizeEntryPath(NormalizePathError),
-    UnabeToReadMetadata(io::Error),
-}
 
-impl Display for ReadEntriesError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ReadEntriesError::UnabeToReadDir(error) => write!(f, "Unable to read dir: {error}"),
-            ReadEntriesError::UnabeToReadEntry(error) => write!(f, "Unable to read entry: {error}"),
-            ReadEntriesError::UnableToNormalizeEntryPath(error) => {
-                write!(f, "Unable to normalize path: {error}")
-            }
-            ReadEntriesError::UnabeToReadMetadata(error) => {
-                write!(f, "Unable to read metadata: {error}")
-            }
-        }
-    }
+    #[display("unable to read an entry: {_0}")]
+    UnabeToReadEntry(io::Error),
+
+    #[display("unable to normalize a path: {_0}")]
+    UnableToNormalizeEntryPath(NormalizePathError),
+
+    #[display("unable to read a metadata: {_0}")]
+    UnabeToReadMetadata(io::Error),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -330,36 +322,22 @@ impl EntryPath {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, derive_more::Display)]
+#[display("{:?} is not a child of the root path {:?}", self.origin, self.root)]
 pub struct UnableToStripRootPrefix {
     origin: PathBuf,
     root: PathBuf,
 }
 
-impl Display for UnableToStripRootPrefix {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let UnableToStripRootPrefix { origin, root } = self;
-        write!(f, "{origin:?} is not a child of the root path {root:?}")
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, derive_more::Display)]
 pub enum NormalizePathError {
+    #[display("path {_0:?} is not a valid utf8 string")]
     NotUtf8(PathBuf),
-    NoName,
-    UnableToStripRootPrefix(UnableToStripRootPrefix),
-}
 
-impl Display for NormalizePathError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NormalizePathError::NotUtf8(path_buf) => {
-                write!(f, "Path {path_buf:?} is not valid utf8")
-            }
-            NormalizePathError::NoName => write!(f, "Empty path"),
-            NormalizePathError::UnableToStripRootPrefix(e) => write!(f, "{e}"),
-        }
-    }
+    #[display("empty path")]
+    NoName,
+
+    UnableToStripRootPrefix(UnableToStripRootPrefix),
 }
 
 pub fn expand_and_canonicalize(
@@ -405,23 +383,13 @@ pub fn replace_all<E>(
     Ok(new)
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum ExpandPathError {
+    #[display("environment variable '{_0}' error: '{_1}'")]
     Env(String, VarError),
-    Canonicalize(String, io::Error),
-}
 
-impl Display for ExpandPathError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExpandPathError::Env(name, error) => {
-                write!(f, "Environment variable '{name}' error '{error}'")
-            }
-            ExpandPathError::Canonicalize(path, error) => {
-                write!(f, "Unable to canonicalize path '{path}': '{error}'")
-            }
-        }
-    }
+    #[display("unable to canonicalize path '{_0}': '{_1}'")]
+    Canonicalize(String, io::Error),
 }
 
 pub fn get_env(variable: &str) -> Result<String, VarError> {
@@ -842,34 +810,34 @@ mod tests {
             "Internal error",
         ))
         .to_string();
-        assert_eq!(&str, "Unable to read dir: Internal error");
+        assert_eq!(&str, "unable to read a dir: Internal error");
 
         let str = ReadEntriesError::UnabeToReadEntry(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
             "Internal error",
         ))
         .to_string();
-        assert_eq!(&str, "Unable to read entry: Internal error");
+        assert_eq!(&str, "unable to read an entry: Internal error");
 
         let str = ReadEntriesError::UnabeToReadMetadata(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
             "Internal error",
         ))
         .to_string();
-        assert_eq!(&str, "Unable to read metadata: Internal error");
+        assert_eq!(&str, "unable to read a metadata: Internal error");
 
         let str =
             ReadEntriesError::UnableToNormalizeEntryPath(NormalizePathError::NoName).to_string();
-        assert_eq!(&str, "Unable to normalize path: Empty path");
+        assert_eq!(&str, "unable to normalize a path: empty path");
     }
 
     #[test]
     fn normalize_path_error_display() {
         let str = NormalizePathError::NoName.to_string();
-        assert_eq!(&str, "Empty path");
+        assert_eq!(&str, "empty path");
 
         let str = NormalizePathError::NotUtf8(PathBuf::from("abcd")).to_string();
-        assert_eq!(&str, "Path \"abcd\" is not valid utf8");
+        assert_eq!(&str, "path \"abcd\" is not a valid utf8 string");
 
         let str = NormalizePathError::UnableToStripRootPrefix(UnableToStripRootPrefix {
             origin: PathBuf::from("origin_path"),

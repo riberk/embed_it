@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use darling::FromMeta;
 use quote::quote;
 use syn::Ident;
@@ -194,35 +192,13 @@ impl From<MainTraitData> for DirTrait {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display, derive_more::From)]
 pub enum ParseDirAttrError {
+    #[display("unable to resolve embedded trait: {_0}")]
     ResolveEmbeddedTrait(ResolveEmbeddedTraitError),
+
+    #[display("unable to create field traits: {_0}")]
     CreateFieldTraits(CreateFieldTraitsError),
-}
-
-impl Display for ParseDirAttrError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseDirAttrError::ResolveEmbeddedTrait(e) => {
-                write!(f, "Unable to resolve embedded trait: {e}")
-            }
-            ParseDirAttrError::CreateFieldTraits(e) => {
-                write!(f, "Unable to create field traits: {e}")
-            }
-        }
-    }
-}
-
-impl From<ResolveEmbeddedTraitError> for ParseDirAttrError {
-    fn from(value: ResolveEmbeddedTraitError) -> Self {
-        Self::ResolveEmbeddedTrait(value)
-    }
-}
-
-impl From<CreateFieldTraitsError> for ParseDirAttrError {
-    fn from(value: CreateFieldTraitsError) -> Self {
-        Self::CreateFieldTraits(value)
-    }
 }
 
 impl TryFrom<DirAttr> for DirTrait {

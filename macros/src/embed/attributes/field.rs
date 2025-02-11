@@ -130,19 +130,10 @@ pub struct FieldTraits {
     by_trait_name: HashMap<Ident, usize>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum CreateFieldTraitsError {
+    #[display("duplicate trait name: {_0}")]
     DuplicateTraitName(DuplicateTraitName),
-}
-
-impl Display for CreateFieldTraitsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CreateFieldTraitsError::DuplicateTraitName(v) => {
-                writeln!(f, "Duplicate trait name: {v}")
-            }
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -155,7 +146,7 @@ impl Display for DuplicateTraitName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            r#"There are some fields with the same trait names. 
+            r#"there are some fields with the same trait names. 
 Macros will generate a trait definition for each 'field' and a trait name will be an ident 
 from an attribute 'name' of a 'field' in PascalCase with a suffix 'Field'. 
 Change your field names or use an explicit trait name with a 'trait_name' attribute of a 'field'. 

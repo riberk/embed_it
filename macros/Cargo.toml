@@ -28,6 +28,7 @@ glob = { version = "0.3" }
 derive_more = { version = "2.0.1", default-features = false, features = [
     "display",
     "error",
+    "from"
 ] }
 
 digest = { version = "0.10", optional = true, default-features = false, features = [
