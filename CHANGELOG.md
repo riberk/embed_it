@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.1.1] - 2025-03-06
+
+### 💼 Other
+
+- Update dependencies ([62b509a](62b509a1b1963b853cf169ae8e2c04a792727b8c))
+
+
 ## [5.1.0] - 2025-02-11
 
 ### 🚀 Features
