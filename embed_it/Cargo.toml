@@ -18,7 +18,7 @@ embed_it_utils = { version = "^3.0.0", path = "../utils" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-hex-literal = { version = "0.4" }
+hex-literal = { version = "1.0.0" }
 
 [features]
 any-hash = []

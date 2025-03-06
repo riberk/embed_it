@@ -21,7 +21,7 @@ proc-macro2 = "1"
 quote = "1"
 syn = "2"
 darling = "0.20"
-convert_case = "0.7.1"
+convert_case = "0.8.0"
 unicode-ident = "1"
 regex = { version = "1.5.5" }
 glob = { version = "0.3" }
@@ -67,7 +67,7 @@ zstd = { version = "0.13", optional = true, default-features = false, features =
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 prettyplease = { version = "0.2", features = ["verbatim"] }
-hex-literal = { version = "0.4" }
+hex-literal = { version = "1.0.0" }
 
 
 [features]
