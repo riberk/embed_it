@@ -104,16 +104,16 @@ pub struct PathMatcherAttr {
 impl From<PathMatcherAttr> for PathMatcher {
     fn from(value: PathMatcherAttr) -> Self {
         Self {
-            include: value
-                .include
-                .is_empty()
-                .then_some(PathMatchSet::Any)
-                .unwrap_or_else(|| PathMatchSet::OneOf(value.include)),
-            exclude: value
-                .exclude
-                .is_empty()
-                .then_some(PathMatchSet::None)
-                .unwrap_or_else(|| PathMatchSet::OneOf(value.exclude)),
+            include: if value.include.is_empty() {
+                PathMatchSet::Any
+            } else {
+                PathMatchSet::OneOf(value.include)
+            },
+            exclude: if value.exclude.is_empty() {
+                PathMatchSet::None
+            } else {
+                PathMatchSet::OneOf(value.exclude)
+            },
         }
     }
 }
