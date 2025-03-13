@@ -16,13 +16,13 @@ use embed_it_utils::entry::{Entry, EntryKind};
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-    parse_quote, punctuated::Punctuated, token::PathSep, DeriveInput, Error, Ident, PathArguments,
-    PathSegment,
+    DeriveInput, Error, Ident, PathArguments, PathSegment, parse_quote, punctuated::Punctuated,
+    token::PathSep,
 };
 
 use crate::{
     embedded_traits::{
-        EmbeddedTrait, MakeEmbeddedTraitImplementationError, TraitAttr, EMBEDED_TRAITS,
+        EMBEDED_TRAITS, EmbeddedTrait, MakeEmbeddedTraitImplementationError, TraitAttr,
     },
     fs::{EntryIdent, EntryPath, FsInfo, ReadEntriesError, StrIdent},
     utils::{anymap::AnyMap, unique_names::UniqueIdents},
@@ -451,14 +451,14 @@ mod tests {
     use crate::{
         fn_name,
         test_helpers::{
-            create_dir_all, create_file, derive_input, remove_and_create_dir_all, tests_dir, Print,
+            Print, create_dir_all, create_file, derive_input, remove_and_create_dir_all, tests_dir,
         },
     };
 
-    use super::{attributes::embed::EmbedInput, fix_path, impl_embed, GenerationSettings};
+    use super::{GenerationSettings, attributes::embed::EmbedInput, fix_path, impl_embed};
     use proc_macro2::Span;
     use quote::quote;
-    use syn::{punctuated::Punctuated, Ident};
+    use syn::{Ident, punctuated::Punctuated};
 
     #[test]
     fn check_macros_simple() {
@@ -846,7 +846,10 @@ mod tests {
 
         let err = impl_embed(input).unwrap_err().to_string();
 
-        assert_eq!(&err, "unable to parse the `file` attribute: unable to resolve embedded trait: feature 'md5' must be enabled to use 'Hash(md5)'");
+        assert_eq!(
+            &err,
+            "unable to parse the `file` attribute: unable to resolve embedded trait: feature 'md5' must be enabled to use 'Hash(md5)'"
+        );
     }
 
     #[test]

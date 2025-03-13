@@ -4,7 +4,7 @@ pub mod hashes;
 #[cfg(feature = "any-compression")]
 pub mod compression;
 
-use crate::{metadata::Metadata, EmbeddedPath};
+use crate::{EmbeddedPath, metadata::Metadata};
 
 /// Provides full information about a path of an entry
 pub trait EntryPath {

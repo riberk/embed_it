@@ -5,13 +5,13 @@ use syn::Ident;
 use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
-        debug::DebugTrait, direct_child_count::DirectChildCountTrait, entries::EntriesTrait,
-        hashes::ids::*, index::IndexTrait, meta::MetaTrait, path::PathTrait,
-        recursive_child_count::RecursiveChildCountTrait, EmbeddedTrait, ResolveEmbeddedTraitError,
-        TraitAttr, EMBEDED_TRAITS,
+        EMBEDED_TRAITS, EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr, debug::DebugTrait,
+        direct_child_count::DirectChildCountTrait, entries::EntriesTrait, hashes::ids::*,
+        index::IndexTrait, meta::MetaTrait, path::PathTrait,
+        recursive_child_count::RecursiveChildCountTrait,
     },
     main_trait_data::{MainTrait, MainTraitData},
-    marker_traits::{child_of::ChildOfMarker, MarkerTrait},
+    marker_traits::{MarkerTrait, child_of::ChildOfMarker},
 };
 
 use super::{
@@ -286,7 +286,7 @@ impl TraitAttr for DirTrait {
 mod tests {
     use darling::FromMeta;
     use proc_macro2::Span;
-    use syn::{parse_quote, Ident};
+    use syn::{Ident, parse_quote};
 
     use crate::embed::attributes::{
         derive_default_traits::DeriveDefaultTraits, dir::DirEmbeddedTrait,

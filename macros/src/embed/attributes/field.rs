@@ -4,10 +4,10 @@ use convert_case::{Case, Casing};
 use darling::FromMeta;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{parse_quote, Ident, TypeParamBound};
+use syn::{Ident, TypeParamBound, parse_quote};
 
 use crate::{
-    embed::{bool_like_enum::BoolLikeEnum, fix_path, GenerateContext},
+    embed::{GenerateContext, bool_like_enum::BoolLikeEnum, fix_path},
     embedded_traits::TraitAttr,
     fs::EntryPath,
 };

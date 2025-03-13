@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::PathSegment;
 
-use crate::embed::{nested_module_path, EntryTokens, GenerateContext, IndexTokens};
+use crate::embed::{EntryTokens, GenerateContext, IndexTokens, nested_module_path};
 
 use super::MarkerTrait;
 

@@ -1,9 +1,9 @@
 use embed_it_utils::entry::EntryKind;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse_quote;
 
 use crate::embed::{
-    attributes::embed::GenerationSettings, EntryTokens, GenerateContext, IndexTokens,
+    EntryTokens, GenerateContext, IndexTokens, attributes::embed::GenerationSettings,
 };
 
 use super::{EmbeddedTrait, MakeEmbeddedTraitImplementationError};

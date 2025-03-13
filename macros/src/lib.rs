@@ -1,6 +1,6 @@
 use embed::impl_embed;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 pub(crate) mod embed;
 pub(crate) mod embedded_traits;

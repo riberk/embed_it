@@ -123,8 +123,18 @@ pub mod sha2 {
             Assets.sha2_256(),
             &hex!("e16b758a01129c86f871818a7b4e31c88a3c6b69d9c8319bcbc881b58f067b25")
         );
-        assert_eq!(Assets.sha2_384(), &hex!("de4656a27347eee72aea1d15e85f20439673709cde5339772660bbd9d800bbde9f637eb3505f572140432625f3948175"));
-        assert_eq!(Assets.sha2_512(), &hex!("bc1673b560316c6586fa1ec98ca5df3e303b66ddae944b05c71314806f88bd4b8f4c7832dfb7dd729eaca191b7142936d21bd07f750c9bc35d67f218e51bbaa4"));
+        assert_eq!(
+            Assets.sha2_384(),
+            &hex!(
+                "de4656a27347eee72aea1d15e85f20439673709cde5339772660bbd9d800bbde9f637eb3505f572140432625f3948175"
+            )
+        );
+        assert_eq!(
+            Assets.sha2_512(),
+            &hex!(
+                "bc1673b560316c6586fa1ec98ca5df3e303b66ddae944b05c71314806f88bd4b8f4c7832dfb7dd729eaca191b7142936d21bd07f750c9bc35d67f218e51bbaa4"
+            )
+        );
     }
 }
 
@@ -151,8 +161,18 @@ pub mod sha3 {
             Assets.sha3_256(),
             &hex!("a2d99103dc2d1967fb05c4de99a1432e9afb1f5acc698fefb2112ce7fb9335c4")
         );
-        assert_eq!(Assets.sha3_384(), &hex!("cf1f50cb53dc61b3519227887bfb20230b6878d32b10c5a9bfe016095aaecc593e612a165c89488109da62138a7214d8"));
-        assert_eq!(Assets.sha3_512(), &hex!("aeff4601a53fecdad418f3245676398719d507bd7b971098ad3f4c2d495c2cc96faf022f481c0bebc0632492abd8eb9fe9f8af6d25664f33d61ff316d269682a"));
+        assert_eq!(
+            Assets.sha3_384(),
+            &hex!(
+                "cf1f50cb53dc61b3519227887bfb20230b6878d32b10c5a9bfe016095aaecc593e612a165c89488109da62138a7214d8"
+            )
+        );
+        assert_eq!(
+            Assets.sha3_512(),
+            &hex!(
+                "aeff4601a53fecdad418f3245676398719d507bd7b971098ad3f4c2d495c2cc96faf022f481c0bebc0632492abd8eb9fe9f8af6d25664f33d61ff316d269682a"
+            )
+        );
     }
 }
 

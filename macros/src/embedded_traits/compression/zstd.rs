@@ -1,6 +1,6 @@
 use syn::parse_quote;
 
-use super::{ids, CompressionAlg, CompressionTrait, Compressor, FinalizeCompressorError};
+use super::{CompressionAlg, CompressionTrait, Compressor, FinalizeCompressorError, ids};
 
 #[derive(Debug)]
 pub struct Zstd;

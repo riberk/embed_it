@@ -1,7 +1,7 @@
 use md5::Md5;
 use syn::parse_quote;
 
-use super::{digest::DigestHashAlg, HashTrait};
+use super::{HashTrait, digest::DigestHashAlg};
 
 pub const MD5: &HashTrait<DigestHashAlg<Md5>> = &HashTrait::new(DigestHashAlg::new(
     super::ids::MD5.id,

@@ -4,8 +4,8 @@ use syn::parse_quote;
 
 use crate::{
     embed::{
-        attributes::embed::GenerationSettings, bool_like_enum::BoolLikeEnum, EntryTokens,
-        GenerateContext, IndexTokens,
+        EntryTokens, GenerateContext, IndexTokens, attributes::embed::GenerationSettings,
+        bool_like_enum::BoolLikeEnum,
     },
     embedded_traits::MakeEmbeddedTraitImplementationError,
     utils::entry_ext::EntryKindExt,

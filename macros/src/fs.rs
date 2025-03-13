@@ -416,7 +416,7 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use super::{expand_and_canonicalize, EntryPath, ExpandPathError, ReadEntriesError};
+    use super::{EntryPath, ExpandPathError, ReadEntriesError, expand_and_canonicalize};
 
     fn entry_path<P: AsRef<Path>>(
         origin: P,

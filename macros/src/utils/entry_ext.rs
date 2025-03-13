@@ -1,5 +1,5 @@
 use embed_it_utils::entry::EntryKind;
-use syn::{parse_quote, Ident};
+use syn::{Ident, parse_quote};
 
 pub trait EntryKindExt {
     fn ident(&self) -> Ident;

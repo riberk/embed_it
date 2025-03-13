@@ -2,7 +2,7 @@ use quote::quote;
 use syn::parse_quote;
 
 use crate::{
-    embed::{attributes::embed::GenerationSettings, EntryTokens, GenerateContext, IndexTokens},
+    embed::{EntryTokens, GenerateContext, IndexTokens, attributes::embed::GenerationSettings},
     fs::EntryPath,
 };
 

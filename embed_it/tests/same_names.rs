@@ -25,7 +25,9 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             paths,
-            ["same+txt", "same.txt", "same_txt", "same)txt", "same-txt", "same=txt"]
+            [
+                "same+txt", "same.txt", "same_txt", "same)txt", "same-txt", "same=txt"
+            ]
         );
     }
 

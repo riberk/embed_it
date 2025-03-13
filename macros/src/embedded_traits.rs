@@ -20,16 +20,16 @@ use std::{
 
 use embed_it_utils::entry::EntryKind;
 use quote::quote;
-use syn::{parse_quote, punctuated::Punctuated, Ident, Token, TraitBound, TypeParamBound};
+use syn::{Ident, Token, TraitBound, TypeParamBound, parse_quote, punctuated::Punctuated};
 
 use crate::{
     embed::{
+        EntryTokens, GenerateContext, IndexTokens,
         attributes::{
             derive_default_traits::DeriveDefaultTraits, embed::GenerationSettings,
             entry::EntryStruct, field::FieldTraits,
         },
         bool_like_enum::BoolLikeEnum,
-        EntryTokens, GenerateContext, IndexTokens,
     },
     fs::EntryPath,
     marker_traits::MarkerTrait,
@@ -334,8 +334,8 @@ mod tests {
     use crate::embed::attributes::derive_default_traits::DeriveDefaultTraits;
 
     use super::{
-        entries::EntriesTrait, index::IndexTrait, path::PathTrait, AllEmbededTraits, EmbeddedTrait,
-        EnabledTraits,
+        AllEmbededTraits, EmbeddedTrait, EnabledTraits, entries::EntriesTrait, index::IndexTrait,
+        path::PathTrait,
     };
 
     #[test]

@@ -1,7 +1,7 @@
 use sha3::{Sha3_224, Sha3_256, Sha3_384, Sha3_512};
 use syn::parse_quote;
 
-use super::{digest::DigestHashAlg, HashTrait};
+use super::{HashTrait, digest::DigestHashAlg};
 
 pub const SHA3_224: &HashTrait<DigestHashAlg<Sha3_224>> = &HashTrait::new(DigestHashAlg::new(
     super::ids::SHA3_224.id,
@@ -51,10 +51,20 @@ mod tests {
 
         let mut hasher = super::SHA3_384.0.make_hasher();
         hasher.hash(b"hello");
-        assert_eq!(hasher.finalize(), hex!("720aea11019ef06440fbf05d87aa24680a2153df3907b23631e7177ce620fa1330ff07c0fddee54699a4c3ee0ee9d887"));
+        assert_eq!(
+            hasher.finalize(),
+            hex!(
+                "720aea11019ef06440fbf05d87aa24680a2153df3907b23631e7177ce620fa1330ff07c0fddee54699a4c3ee0ee9d887"
+            )
+        );
 
         let mut hasher = super::SHA3_512.0.make_hasher();
         hasher.hash(b"hello");
-        assert_eq!(hasher.finalize(), hex!("75d527c368f2efe848ecf6b073a36767800805e9eef2b1857d5f984f036eb6df891d75f72d9b154518c1cd58835286d1da9a38deba3de98b5a53e5ed78a84976"));
+        assert_eq!(
+            hasher.finalize(),
+            hex!(
+                "75d527c368f2efe848ecf6b073a36767800805e9eef2b1857d5f984f036eb6df891d75f72d9b154518c1cd58835286d1da9a38deba3de98b5a53e5ed78a84976"
+            )
+        );
     }
 }

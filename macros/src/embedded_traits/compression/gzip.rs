@@ -1,7 +1,7 @@
-use flate2::{write::GzEncoder, Compression};
+use flate2::{Compression, write::GzEncoder};
 use syn::parse_quote;
 
-use super::{ids, CompressionAlg, CompressionTrait, Compressor, FinalizeCompressorError};
+use super::{CompressionAlg, CompressionTrait, Compressor, FinalizeCompressorError, ids};
 
 #[derive(Debug)]
 pub struct Gzip;
@@ -40,7 +40,7 @@ mod tests {
     use hex_literal::hex;
     use pretty_assertions::assert_eq;
 
-    use crate::embedded_traits::compression::{gzip::Gzip, CompressionAlg, Compressor};
+    use crate::embedded_traits::compression::{CompressionAlg, Compressor, gzip::Gzip};
 
     #[test]
     fn check() {

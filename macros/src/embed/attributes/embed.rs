@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::embed::GenerateContext;
 use crate::embedded_traits::TraitAttr;
-use crate::fs::{expand_and_canonicalize, get_env, ExpandPathError};
+use crate::fs::{ExpandPathError, expand_and_canonicalize, get_env};
 
 use super::dir::{DirAttr, DirTrait, ParseDirAttrError};
 use super::entry::{EntryAttr, EntryStruct};
@@ -12,7 +12,7 @@ use super::with_extension::WithExtension;
 use darling::FromDeriveInput;
 use embed_it_utils::entry::{Entry, EntryKind};
 use proc_macro2::TokenStream;
-use syn::{parse_quote, Ident};
+use syn::{Ident, parse_quote};
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(embed), supports(struct_unit))]

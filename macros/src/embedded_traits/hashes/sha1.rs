@@ -1,7 +1,7 @@
 use sha1::Sha1;
 use syn::parse_quote;
 
-use super::{digest::DigestHashAlg, HashTrait};
+use super::{HashTrait, digest::DigestHashAlg};
 
 pub const SHA1: &HashTrait<DigestHashAlg<Sha1>> = &HashTrait::new(DigestHashAlg::new(
     super::ids::SHA1.id,

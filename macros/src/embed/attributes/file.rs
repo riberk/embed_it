@@ -5,6 +5,7 @@ use syn::Ident;
 use crate::{
     embed::{EntryTokens, GenerateContext},
     embedded_traits::{
+        EMBEDED_TRAITS, EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr,
         compression::ids::{BROTLI, GZIP, ZSTD},
         content::ContentTrait,
         debug::DebugTrait,
@@ -12,10 +13,9 @@ use crate::{
         meta::MetaTrait,
         path::PathTrait,
         str_content::StrContentTrait,
-        EmbeddedTrait, ResolveEmbeddedTraitError, TraitAttr, EMBEDED_TRAITS,
     },
     main_trait_data::{MainTrait, MainTraitData},
-    marker_traits::{child_of::ChildOfMarker, MarkerTrait},
+    marker_traits::{MarkerTrait, child_of::ChildOfMarker},
 };
 
 use super::{
@@ -273,7 +273,7 @@ impl TraitAttr for FileTrait {
 mod tests {
     use darling::FromMeta;
     use proc_macro2::Span;
-    use syn::{parse_quote, Ident};
+    use syn::{Ident, parse_quote};
 
     use crate::embed::attributes::{
         derive_default_traits::DeriveDefaultTraits, file::FileEmbeddedTrait,

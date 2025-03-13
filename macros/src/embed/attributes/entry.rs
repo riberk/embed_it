@@ -1,8 +1,8 @@
 use darling::FromMeta;
 use quote::quote;
-use syn::{parse_quote, punctuated::Punctuated, Ident, Token, TypeParamBound};
+use syn::{Ident, Token, TypeParamBound, parse_quote, punctuated::Punctuated};
 
-use crate::embedded_traits::{debug::DebugTrait, TraitAttr};
+use crate::embedded_traits::{TraitAttr, debug::DebugTrait};
 
 use super::{dir::DirTrait, file::FileTrait};
 
