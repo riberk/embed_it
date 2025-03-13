@@ -1,5 +1,14 @@
 # Changelog
 
+## [6.0.0] - 2025-03-13
+
+### ⚙️ Miscellaneous Tasks
+
+- [**breaking**] Update msrv and fix clippy warnings ([6e24b29](6e24b29c20e123b47dda303a3f550292c23f9840))
+
+- *(scripts)* Prepare env script ([d7371b5](d7371b5176f9ed1b81d9efa61bc64a282309a5ba))
+
+
 ## [5.1.1] - 2025-03-06
 
 ### 💼 Other
