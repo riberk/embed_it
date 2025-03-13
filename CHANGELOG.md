@@ -4,9 +4,11 @@
 
 ### ⚙️ Miscellaneous Tasks
 
-- [**breaking**] Update msrv and fix clippy warnings ([6e24b29](6e24b29c20e123b47dda303a3f550292c23f9840))
+- [**breaking**] Update msrv and fix clippy warnings ([10a8f19](10a8f19a7958bb7503bd430593aca52bbff8a597))
 
-- *(scripts)* Prepare env script ([d7371b5](d7371b5176f9ed1b81d9efa61bc64a282309a5ba))
+- *(scripts)* Prepare env script ([dc20b9f](dc20b9f886f7f1f07dae1d4ee054a10dbffc999d))
+
+- *(fmt)* Cargo fmt ([9a642bd](9a642bde964a67b938a140caa34d50d3109c335a))
 
 
 ## [5.1.1] - 2025-03-06
