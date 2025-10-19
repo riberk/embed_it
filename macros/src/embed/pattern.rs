@@ -10,7 +10,7 @@ impl FromMeta for EntryPattern {
     fn from_string(value: &str) -> darling::Result<Self> {
         Pattern::new(value)
             .map_err(|e| {
-                darling::Error::custom(format!("'{}' is not a valid glob pattern: {:#?}", value, e))
+                darling::Error::custom(format!("'{value}' is not a valid glob pattern: {e:#?}"))
             })
             .map(Self)
     }

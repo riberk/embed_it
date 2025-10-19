@@ -632,13 +632,11 @@ mod tests {
         let err = format!("{:?}", impl_embed(input).unwrap_err());
         assert!(
             err.contains("AssetsAsStrField"),
-            "Unable to find a trait name in a error string: '{}'",
-            err
+            "Unable to find a trait name in a error string: '{err}'"
         );
         assert!(
             err.contains("as_str2"),
-            "Unable to find a method name in a error string: '{}'",
-            err
+            "Unable to find a method name in a error string: '{err}'"
         );
     }
 

@@ -43,7 +43,7 @@ impl EmbeddedTrait for DebugTrait {
             }
             EntryKind::File => {
                 let file_len = ctx.entry.as_ref().value().metadata().len();
-                let debug_content = format!("<{} bytes>", file_len);
+                let debug_content = format!("<{file_len} bytes>");
                 Ok(debug(
                     ctx,
                     quote! {

@@ -757,7 +757,7 @@ mod tests {
                 if var == "DIR" {
                     Ok(dir_name.clone())
                 } else {
-                    panic!("unknown variable: '{}'", var)
+                    panic!("unknown variable: '{var}'")
                 }
             },
         )
@@ -784,7 +784,7 @@ mod tests {
                 assert_eq!("Q", &var);
                 assert_eq!(expected_err, var_error);
             }
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -799,7 +799,7 @@ mod tests {
                 assert_eq!("Q", &var);
                 assert_eq!(expected_err, var_error);
             }
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 

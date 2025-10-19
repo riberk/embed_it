@@ -308,10 +308,11 @@ impl EnabledTraits {
             embedded_traits.push(embedded_trait);
         }
 
-        let default_traits = derive_default
-            .as_bool()
-            .then_some(defautl_traits)
-            .unwrap_or_default();
+        let default_traits = if derive_default.as_bool() {
+            defautl_traits
+        } else {
+            Default::default()
+        };
         for &default_trait in default_traits {
             if !enabled_traits.contains(default_trait.id()) {
                 enabled_traits.insert(default_trait.id());

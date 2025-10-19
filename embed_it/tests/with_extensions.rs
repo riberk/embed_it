@@ -20,8 +20,8 @@ mod tests {
     ) -> T {
         let entry = dir
             .get(path)
-            .unwrap_or_else(|| panic!("Unable to find '{}'", path));
-        f(entry).unwrap_or_else(|| panic!("'{}' is not a {}", path, expected))
+            .unwrap_or_else(|| panic!("Unable to find '{path}'"));
+        f(entry).unwrap_or_else(|| panic!("'{path}' is not a {expected}"))
     }
 
     fn get_file<D: Dir + ?Sized>(dir: &D, path: &str) -> &'static dyn EntryFile {

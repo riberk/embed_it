@@ -17,9 +17,7 @@ impl Eq for EntryRegex {}
 impl FromMeta for EntryRegex {
     fn from_string(value: &str) -> darling::Result<Self> {
         Regex::new(value)
-            .map_err(|e| {
-                darling::Error::custom(format!("'{}' is not a valid regex: {:#?}", value, e))
-            })
+            .map_err(|e| darling::Error::custom(format!("'{value}' is not a valid regex: {e:#?}")))
             .map(Self)
     }
 }
