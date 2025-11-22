@@ -20,8 +20,7 @@ Imagine a project structure like this:
 You can use a macro to expand it into Rust code:
 
 ```rust
-use embed_it::Embed;
-#[derive(Embed)]
+#[derive(embed_it::Embed)]
 #[embed(
     path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
     support_alt_separator,
@@ -29,7 +28,7 @@ use embed_it::Embed;
 pub struct Assets;
 
 fn main() {
-    use embed_it::{Content, EntryPath, EmbeddedPath, Index};
+    use embed_it::EmbeddedPath;
     assert_eq!(Assets.hello().content(), b"hello");
     assert_eq!(Assets.hello().path(), &EmbeddedPath::new("hello.txt", "hello.txt", "hello"));
 
@@ -155,9 +154,8 @@ For each `field` defined in macros a special trait will be generated inside the 
 
 ```rust
 use std::str::from_utf8;
-use embed_it::Embed;
 
-#[derive(Embed)]
+#[derive(embed_it::Embed)]
 #[embed(
     path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
     file(
@@ -207,7 +205,6 @@ impl FileFieldFactory for AsStr {
     type Field = Option<Self>;
 
     fn create<T: File + ?Sized>(data: &T) -> Self::Field {
-        use embed_it::{ Content };
         from_utf8(data.content()).map(AsStr).ok()
     }
 }
@@ -217,14 +214,11 @@ impl DirFieldFactory for Children {
     type Field = Vec<&'static str>;
 
     fn create<T: Dir + ?Sized>(data: &T) -> Self::Field {
-        use embed_it::{ EntryPath, Entries };
         data.entries().iter().map(|e| e.map(|d| d.path(), |f| f.path()).value().name()).collect()
     }
 }
 
 fn main() {
-    use embed_it::{ Content, Index };
-
     // the field `as_str`
     use AsStrField;
     assert_eq!(Assets.hello().content(), b"hello");
@@ -263,7 +257,6 @@ You can control which files / directories will be included into a struct with mu
 Matching is done on relative file paths, via either a glob pattern, a regular expression or both. `exclude` attributes have higher priority than include attributes.
 
 ```rust
-use embed_it::Embed;
 
 #[derive(embed_it::Embed)]
 #[embed(
@@ -283,8 +276,6 @@ use embed_it::Embed;
 pub struct Assets;
 
 fn main() {
-
-    use embed_it::Index;
     assert!(Assets.get("one.txt").is_some());
     assert!(Assets.get("hello.txt").is_some());
 
@@ -327,9 +318,8 @@ The example below compiles only if all hash features listed in the table above a
 )]
 mod lib {
     use std::str::from_utf8;
-    use embed_it::Embed;
 
-    #[derive(Embed)]
+    #[derive(embed_it::Embed)]
     #[embed(
         path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
         dir(
@@ -362,21 +352,6 @@ mod lib {
     pub struct Assets;
 
     fn main() {
-        use embed_it::{ 
-            Md5Hash, 
-            Sha1Hash, 
-            Sha2_224Hash, 
-            Sha2_256Hash, 
-            Sha2_384Hash, 
-            Sha2_512Hash,
-            Sha3_224Hash, 
-            Sha3_256Hash, 
-            Sha3_384Hash, 
-            Sha3_512Hash,
-            Blake3_256Hash,
-            Entries
-        };
-
         use hex_literal::hex;
 
         assert_eq!(Assets.md5(), &hex!("56e71a41c76b1544c52477adf4c8e2f7"));
@@ -422,9 +397,8 @@ The feature **is not** designed to reduce the size, but to have the already comp
 )]
 mod lib {
     use std::str::from_utf8;
-    use embed_it::Embed;
 
-    #[derive(Embed)]
+    #[derive(embed_it::Embed)]
     #[embed(
         path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
         file(
@@ -437,12 +411,6 @@ mod lib {
 
     #[test]
     fn main() {
-        use embed_it::{ 
-            BrotliContent, 
-            GzipContent, 
-            ZstdContent, 
-        };
-
         use hex_literal::hex;
 
         assert_eq!(Assets.hello().gzip_content(), &hex!("1f8b08000000000002ffcb48cdc9c9070086a6103605000000"));
@@ -458,8 +426,8 @@ mod lib {
 ## More complex example
 
 ```rust
-use embed_it::Embed;
-#[derive(Embed)]
+
+#[derive(embed_it::Embed)]
 #[embed(
     path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
     dir(
@@ -570,7 +538,6 @@ impl AssetsDirFieldFactory for Children {
     type Field = Vec<&'static str>;
 
     fn create<T: AssetsDir + ?Sized>(data: &T) -> Self::Field {
-        use embed_it::EntryPath;
         data.entries().iter().map(|v| v.map(|d| d.path(), |f| f.path()).value().relative_path_str()).collect()
     }
 }
@@ -587,7 +554,7 @@ impl AssetsFileFieldFactory for AsStr {
 }
 
 fn main() {
-    use embed_it::{Content, EntryPath, Meta, Entries, Entry};
+    use embed_it::Entry;
     assert_eq!(Assets.hello_txt().as_str(), &Some("hello"));
     assert_eq!(Assets.one_txt_1().as_str(), &Some("one"));
     assert_eq!(Assets.world_txt().as_str(), &Some("world"));
@@ -658,7 +625,7 @@ impl ::embed_it::Content for Hello {
 * by a `static` `LazyLock` for non-const items, which can be created without a context
 ```rust
 
-use embed_it::{Entry, Index, Content};
+use embed_it::Entry;
 
 pub struct Assets;
 

@@ -76,4 +76,8 @@ impl<D: Digest + std::io::Write> HashAlg for DigestHashAlg<D> {
     fn make_hasher(&self) -> impl super::Hasher {
         DigestHasher(D::new())
     }
+
+    fn output_size(&self) -> usize {
+        <D as digest::OutputSizeUser>::output_size()
+    }
 }

@@ -9,7 +9,7 @@ use actix_web::{
     },
     web, App, HttpRequest, HttpResponse, HttpServer,
 };
-use embed_it::{Blake3_256Hash, Entry, EntryPath, Index, StrContent};
+use embed_it::Entry;
 use hex::ToHex;
 use templates::{DirModel, EntryModel, Templates};
 use tinytemplate::TinyTemplate;

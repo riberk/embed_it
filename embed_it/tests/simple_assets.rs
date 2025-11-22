@@ -1,6 +1,4 @@
-use embed_it::Embed;
-
-#[derive(Embed)]
+#[derive(embed_it::Embed)]
 #[embed(
     path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
     file(derive(StrContent))
@@ -8,7 +6,7 @@ use embed_it::Embed;
 pub struct Assets;
 
 mod tests {
-    use embed_it::{Content, EmbeddedPath, Entries, Entry, EntryPath, Index, StrContent};
+    use embed_it::{EmbeddedPath, Entry};
 
     use crate::{Dir, DynDir, DynFile, EntryDir, EntryFile};
 
@@ -153,14 +151,12 @@ mod tests {
 
     #[test]
     fn direct_child_count() {
-        use embed_it::DirectChildCount;
         assert_eq!(4, Assets.direct_child_count());
         assert_eq!(2, Assets.one_txt().direct_child_count());
     }
 
     #[test]
     fn recursive_child_count() {
-        use embed_it::RecursiveChildCount;
         assert_eq!(6, Assets.recursive_child_count());
         assert_eq!(2, Assets.one_txt().recursive_child_count());
     }

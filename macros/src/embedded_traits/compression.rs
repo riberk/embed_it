@@ -46,29 +46,15 @@ impl<T: CompressionAlg + Debug> CompressionTrait<T> {
     }
 }
 
-impl<T: CompressionAlg + Debug> EmbeddedTrait for CompressionTrait<T> {
-    fn id(&self) -> &'static str {
-        self.0.id()
-    }
-
-    fn path(&self, _: usize, _: &GenerationSettings) -> syn::Path {
-        self.0.trait_path()
-    }
-
-    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
-        None
-    }
-
+impl<T: CompressionAlg> CompressionTrait<T> {
     fn impl_body(
         &self,
         ctx: &mut crate::embed::GenerateContext<'_>,
-        _entries: &[crate::embed::EntryTokens],
-        _index: &[crate::embed::IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         if ctx.entry.kind() != EntryKind::File {
             return Err(MakeEmbeddedTraitImplementationError::UnsupportedEntry {
                 entry: ctx.entry.kind(),
-                trait_id: self.id(),
+                trait_id: self.0.id(),
             });
         }
         let file_path = ctx.entry.as_ref().value().path().origin_path();
@@ -93,7 +79,7 @@ impl<T: CompressionAlg + Debug> EmbeddedTrait for CompressionTrait<T> {
             MakeEmbeddedTraitImplementationError::with_error(
                 format!(
                     "Unable to compress content of {file_path:?} with '{}'",
-                    self.id()
+                    self.0.id()
                 ),
                 e,
             )
@@ -101,18 +87,56 @@ impl<T: CompressionAlg + Debug> EmbeddedTrait for CompressionTrait<T> {
 
         let content = compressor.finalize().map_err(|e| {
             MakeEmbeddedTraitImplementationError::with_error(
-                format!("Unable to compress file {file_path:?} with {}", self.id()),
+                format!("Unable to compress file {file_path:?} with {}", self.0.id()),
                 e,
             )
         })?;
         let method = self.0.trait_method();
         let res = quote! {
-            fn #method(&self) -> &'static [u8] {
+            pub fn #method(&self) -> &'static [u8] {
                 const VALUE: &[u8] = &[#(#content),*];
                 VALUE
             }
         };
 
+        Ok(res)
+    }
+}
+
+impl<T: CompressionAlg + Debug> EmbeddedTrait for CompressionTrait<T> {
+    fn id(&self) -> &'static str {
+        self.0.id()
+    }
+
+    fn path(&self, _: usize, _: &GenerationSettings) -> syn::Path {
+        self.0.trait_path()
+    }
+
+    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
+        None
+    }
+
+    fn impl_body(
+        &self,
+        ctx: &mut crate::embed::GenerateContext<'_>,
+        _entries: &[crate::embed::EntryTokens],
+        _index: &[crate::embed::IndexTokens],
+    ) -> Option<Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>> {
+        Some(self.impl_body(ctx))
+    }
+
+    fn impl_trait_body(
+        &self,
+        _ctx: &mut crate::embed::GenerateContext<'_>,
+        _entries: &[crate::embed::EntryTokens],
+        _index: &[crate::embed::IndexTokens],
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
+        let method = self.0.trait_method();
+        let res = quote! {
+            fn #method(&self) -> &'static [u8] {
+                self.#method()
+            }
+        };
         Ok(res)
     }
 }

@@ -1,6 +1,5 @@
 #[cfg(feature = "gzip")]
 pub mod gzip {
-    use embed_it::GzipContent;
     use hex_literal::hex;
 
     #[derive(embed_it::Embed)]
@@ -27,7 +26,6 @@ pub mod gzip {
 
 #[cfg(feature = "brotli")]
 pub mod brotli {
-    use embed_it::BrotliContent;
     use hex_literal::hex;
 
     #[derive(embed_it::Embed)]
@@ -47,7 +45,6 @@ pub mod brotli {
 
 #[cfg(feature = "zstd")]
 pub mod zstd {
-    use embed_it::ZstdContent;
     use hex_literal::hex;
 
     #[derive(embed_it::Embed)]

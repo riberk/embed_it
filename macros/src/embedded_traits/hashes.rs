@@ -32,6 +32,7 @@ pub trait HashAlg: Send + Sync {
     fn trait_path(&self) -> syn::Path;
     fn trait_method(&self) -> syn::Ident;
     fn make_hasher(&self) -> impl Hasher;
+    fn output_size(&self) -> usize;
 }
 
 pub trait Hasher: std::io::Write {
@@ -58,24 +59,11 @@ impl<T: HashAlg + Debug> HashTrait<T> {
 #[derive(Debug, Default)]
 struct Hashes(HashMap<&'static str, Vec<u8>>);
 
-impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
-    fn id(&self) -> &'static str {
-        self.0.id()
-    }
-
-    fn path(&self, _: usize, _: &GenerationSettings) -> syn::Path {
-        self.0.trait_path()
-    }
-
-    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
-        None
-    }
-
+impl<T: HashAlg + Debug> HashTrait<T> {
     fn impl_body(
         &self,
         ctx: &mut crate::embed::GenerateContext<'_>,
         entries: &[crate::embed::EntryTokens],
-        _index: &[crate::embed::IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         let hash = match &ctx.entry {
             Entry::Dir(_) => {
@@ -119,10 +107,17 @@ impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
                 hasher.finalize()
             }
         };
-        let hash_len = hash.len();
+
+        let hash_len = self.0.output_size();
+        debug_assert!(
+            hash.len() == hash_len,
+            "BUG: Generated hash len ({}) is not equal to the expected once ({})",
+            hash.len(),
+            hash_len
+        );
         let method = self.0.trait_method();
         let res = quote! {
-            fn #method(&self) -> &'static [u8; #hash_len] {
+            pub fn #method(&self) -> &'static [u8; #hash_len] {
                 const VALUE: &[u8; #hash_len] = &[#(#hash),*];
                 VALUE
             }
@@ -132,6 +127,44 @@ impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
             .get_or_default::<Hashes>()
             .0
             .insert(self.id(), hash);
+        Ok(res)
+    }
+}
+
+impl<T: HashAlg + Debug> EmbeddedTrait for HashTrait<T> {
+    fn id(&self) -> &'static str {
+        self.0.id()
+    }
+
+    fn path(&self, _: usize, _: &GenerationSettings) -> syn::Path {
+        self.0.trait_path()
+    }
+
+    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
+        None
+    }
+
+    fn impl_body(
+        &self,
+        ctx: &mut crate::embed::GenerateContext<'_>,
+        entries: &[crate::embed::EntryTokens],
+        _index: &[crate::embed::IndexTokens],
+    ) -> Option<Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>> {
+        Some(self.impl_body(ctx, entries))
+    }
+    fn impl_trait_body(
+        &self,
+        _ctx: &mut crate::embed::GenerateContext<'_>,
+        _entries: &[crate::embed::EntryTokens],
+        _index: &[crate::embed::IndexTokens],
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
+        let hash_len = self.0.output_size();
+        let method = self.0.trait_method();
+        let res = quote! {
+            fn #method(&self) -> &'static [u8; #hash_len] {
+                self.#method()
+            }
+        };
         Ok(res)
     }
 }

@@ -12,16 +12,10 @@ use super::MakeEmbeddedTraitImplementationError;
 #[derive(Debug)]
 pub struct StrContentTrait;
 
-impl EmbeddedTrait for StrContentTrait {
-    fn path(&self, _nesting: usize, _: &GenerationSettings) -> syn::Path {
-        parse_quote!(::embed_it::StrContent)
-    }
-
+impl StrContentTrait {
     fn impl_body(
         &self,
         ctx: &mut GenerateContext<'_>,
-        _entries: &[EntryTokens],
-        _index: &[IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         if ctx.entry.kind() != EntryKind::File {
             return Err(MakeEmbeddedTraitImplementationError::UnsupportedEntry {
@@ -32,11 +26,26 @@ impl EmbeddedTrait for StrContentTrait {
 
         let origin = &ctx.entry.as_ref().value().path().origin;
         Ok(quote! {
-            fn str_content(&self) -> &'static str {
+            pub fn str_content(&self) -> &'static str {
                 const VALUE: &str = include_str!(#origin);
                 VALUE
             }
         })
+    }
+}
+
+impl EmbeddedTrait for StrContentTrait {
+    fn path(&self, _nesting: usize, _: &GenerationSettings) -> syn::Path {
+        parse_quote!(::embed_it::StrContent)
+    }
+
+    fn impl_body(
+        &self,
+        ctx: &mut GenerateContext<'_>,
+        _entries: &[EntryTokens],
+        _index: &[IndexTokens],
+    ) -> Option<Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>> {
+        Some(self.impl_body(ctx))
     }
 
     fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
@@ -45,5 +54,18 @@ impl EmbeddedTrait for StrContentTrait {
 
     fn id(&self) -> &'static str {
         "StrContent"
+    }
+
+    fn impl_trait_body(
+        &self,
+        _ctx: &mut GenerateContext<'_>,
+        _entries: &[EntryTokens],
+        _index: &[IndexTokens],
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
+        Ok(quote! {
+            fn str_content(&self) -> &'static str {
+                self.str_content()
+            }
+        })
     }
 }

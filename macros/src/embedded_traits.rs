@@ -160,12 +160,20 @@ pub trait EmbeddedTrait: Send + Sync + Debug {
         parse_quote!(#path)
     }
 
-    fn impl_body(
+    fn impl_trait_body(
         &self,
         ctx: &mut GenerateContext<'_>,
         entries: &[EntryTokens],
         index: &[IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>;
+
+    /// Returns None if the `impl #Struct { ... }` is not needed
+    fn impl_body(
+        &self,
+        ctx: &mut GenerateContext<'_>,
+        entries: &[EntryTokens],
+        index: &[IndexTokens],
+    ) -> Option<Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>>;
 
     fn implementation(
         &self,
@@ -174,14 +182,29 @@ pub trait EmbeddedTrait: Send + Sync + Debug {
         index: &[IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         let trait_path = self.path(ctx.level, ctx.settings);
-        let body = self.impl_body(ctx, entries, index)?;
-        let struct_ident = &ctx.entry_struct_ident();
+        let trait_body = self.impl_trait_body(ctx, entries, index)?;
+
+        let body = self.impl_body(ctx, entries, index).transpose()?;
+        let struct_ident = ctx.entry_struct_ident();
+
+        let body = body.map(|body| {
+            quote! {
+                #[automatically_derived]
+                impl #struct_ident {
+                    #body
+                }
+            }
+        });
 
         Ok(quote! {
+            #body
+
             #[automatically_derived]
             impl #trait_path for #struct_ident {
-                #body
+                #trait_body
             }
+
+
         })
     }
 }

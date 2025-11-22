@@ -18,9 +18,26 @@ impl EmbeddedTrait for DebugTrait {
 
     fn impl_body(
         &self,
-        ctx: &mut GenerateContext<'_>,
-        entries: &[EntryTokens],
+        _ctx: &mut GenerateContext<'_>,
+        _entries: &[EntryTokens],
         _index: &[IndexTokens],
+    ) -> Option<Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>> {
+        None
+    }
+
+    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
+        None
+    }
+
+    fn id(&self) -> &'static str {
+        "Debug"
+    }
+
+    fn impl_trait_body(
+        &self,
+        ctx: &mut crate::embed::GenerateContext<'_>,
+        entries: &[crate::embed::EntryTokens],
+        _index: &[crate::embed::IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         match ctx.entry.kind() {
             EntryKind::Dir => {
@@ -52,14 +69,6 @@ impl EmbeddedTrait for DebugTrait {
                 ))
             }
         }
-    }
-
-    fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
-        None
-    }
-
-    fn id(&self) -> &'static str {
-        "Debug"
     }
 }
 

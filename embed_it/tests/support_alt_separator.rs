@@ -1,6 +1,5 @@
 mod alt_sep {
-    use embed_it::Embed;
-    #[derive(Embed)]
+    #[derive(embed_it::Embed)]
     #[embed(
         path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
         support_alt_separator = "yes"
@@ -9,8 +8,7 @@ mod alt_sep {
 }
 
 mod no_alt_sep {
-    use embed_it::Embed;
-    #[derive(Embed)]
+    #[derive(embed_it::Embed)]
     #[embed(
         path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
         support_alt_separator = "no"
@@ -19,8 +17,6 @@ mod no_alt_sep {
 }
 
 mod tests {
-    use embed_it::Index;
-
     use super::*;
 
     #[test]

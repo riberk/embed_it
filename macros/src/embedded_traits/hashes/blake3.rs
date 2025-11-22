@@ -45,6 +45,10 @@ impl HashAlg for Blake3HashAlg {
     fn make_hasher(&self) -> impl super::Hasher {
         Blake3Hasher(Hasher::new())
     }
+
+    fn output_size(&self) -> usize {
+        blake3::OUT_LEN
+    }
 }
 
 pub const BLAKE3: &HashTrait<Blake3HashAlg> = &HashTrait::new(Blake3HashAlg);

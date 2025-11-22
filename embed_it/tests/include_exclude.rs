@@ -13,9 +13,6 @@ pub struct Assets;
 
 #[cfg(test)]
 mod tests {
-
-    use embed_it::Index;
-
     use crate::Assets;
 
     #[test]

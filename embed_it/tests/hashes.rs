@@ -1,6 +1,5 @@
 #[cfg(feature = "md5")]
 pub mod md5 {
-    use embed_it::Md5Hash;
     use hex_literal::hex;
 
     #[derive(embed_it::Embed)]
@@ -43,7 +42,6 @@ pub mod md5 {
     }
 
     mod only_dir {
-        use embed_it::Md5Hash;
         use hex_literal::hex;
 
         #[derive(embed_it::Embed)]
@@ -61,7 +59,6 @@ pub mod md5 {
     }
 
     mod only_file {
-        use embed_it::Md5Hash;
         use hex_literal::hex;
 
         #[derive(embed_it::Embed)]
@@ -80,7 +77,6 @@ pub mod md5 {
 
 #[cfg(feature = "sha1")]
 pub mod sha1 {
-    use embed_it::Sha1Hash;
     use hex_literal::hex;
 
     #[derive(embed_it::Embed)]
@@ -102,7 +98,6 @@ pub mod sha1 {
 
 #[cfg(feature = "sha2")]
 pub mod sha2 {
-    use embed_it::{Sha2_224Hash, Sha2_256Hash, Sha2_384Hash, Sha2_512Hash};
     use hex_literal::hex;
 
     #[derive(embed_it::Embed)]
@@ -140,7 +135,6 @@ pub mod sha2 {
 
 #[cfg(feature = "sha3")]
 pub mod sha3 {
-    use embed_it::{Sha3_224Hash, Sha3_256Hash, Sha3_384Hash, Sha3_512Hash};
     use hex_literal::hex;
 
     #[derive(embed_it::Embed)]
@@ -178,7 +172,6 @@ pub mod sha3 {
 
 #[cfg(feature = "blake3")]
 pub mod blake3 {
-    use embed_it::Blake3_256Hash;
     use hex_literal::hex;
 
     #[derive(embed_it::Embed)]

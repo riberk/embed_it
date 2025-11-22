@@ -33,8 +33,6 @@ impl DirFieldFactory for Children {
 
 #[cfg(test)]
 mod tests {
-    use embed_it::Index;
-
     use crate::{AsStrField, Assets, ChildrenField};
 
     #[test]

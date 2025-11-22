@@ -1,6 +1,4 @@
-use embed_it::Embed;
-
-#[derive(Embed)]
+#[derive(embed_it::Embed)]
 #[embed(
     path = "$CARGO_MANIFEST_DIR/../example_dirs/assets",
     with_extension = true
@@ -8,7 +6,7 @@ use embed_it::Embed;
 pub struct Assets;
 
 mod tests {
-    use embed_it::{Content, EmbeddedPath, Entries, Entry, EntryPath, Index};
+    use embed_it::{EmbeddedPath, Entry};
 
     use super::*;
 

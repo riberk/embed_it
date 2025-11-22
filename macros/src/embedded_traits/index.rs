@@ -16,17 +16,10 @@ use super::EmbeddedTrait;
 #[derive(Debug)]
 pub struct IndexTrait;
 
-impl EmbeddedTrait for IndexTrait {
-    fn path(&self, level: usize, settings: &GenerationSettings) -> syn::Path {
-        let dir = settings.dir_entry_param(level);
-        let file = settings.file_entry_param(level);
-        parse_quote!(::embed_it::Index<#dir, #file>)
-    }
-
+impl IndexTrait {
     fn impl_body(
         &self,
         ctx: &mut GenerateContext<'_>,
-        _entries: &[EntryTokens],
         index: &[IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         if ctx.entry.kind() != EntryKind::Dir {
@@ -74,13 +67,30 @@ impl EmbeddedTrait for IndexTrait {
         };
 
         Ok(quote! {
-            fn get(&self, path: &str) -> Option<&'static #entry_path> {
+            pub fn get(&self, path: &str) -> Option<&'static #entry_path> {
                 static VALUE: ::std::sync::LazyLock<::std::collections::HashMap<&'static str, #entry_path>> = ::std::sync::LazyLock::new(|| {
                     #index
                 });
                 #value_get
             }
         })
+    }
+}
+
+impl EmbeddedTrait for IndexTrait {
+    fn path(&self, level: usize, settings: &GenerationSettings) -> syn::Path {
+        let dir = settings.dir_entry_param(level);
+        let file = settings.file_entry_param(level);
+        parse_quote!(::embed_it::Index<#dir, #file>)
+    }
+
+    fn impl_body(
+        &self,
+        ctx: &mut GenerateContext<'_>,
+        _entries: &[EntryTokens],
+        index: &[IndexTokens],
+    ) -> Option<Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>> {
+        Some(self.impl_body(ctx, index))
     }
 
     fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
@@ -89,5 +99,19 @@ impl EmbeddedTrait for IndexTrait {
 
     fn id(&self) -> &'static str {
         "Index"
+    }
+
+    fn impl_trait_body(
+        &self,
+        ctx: &mut GenerateContext<'_>,
+        _entries: &[EntryTokens],
+        _index: &[IndexTokens],
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
+        let entry_path = &ctx.settings.entry_path(ctx.level);
+        Ok(quote! {
+            fn get(&self, path: &str) -> Option<&'static #entry_path> {
+                self.get(path)
+            }
+        })
     }
 }

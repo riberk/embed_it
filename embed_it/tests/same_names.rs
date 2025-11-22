@@ -1,6 +1,4 @@
-use embed_it::Embed;
-
-#[derive(Embed)]
+#[derive(embed_it::Embed)]
 #[embed(
     path = "$CARGO_MANIFEST_DIR/../example_dirs/same_names",
     with_extension = true
@@ -8,8 +6,6 @@ use embed_it::Embed;
 pub struct SameNames;
 
 mod tests {
-    use embed_it::{Entries, EntryPath};
-
     use crate::SameNames;
 
     #[test]

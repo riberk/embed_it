@@ -16,15 +16,10 @@ fn method() -> syn::Ident {
     parse_quote!(recursive_child_count)
 }
 
-impl EmbeddedTrait for RecursiveChildCountTrait {
-    fn path(&self, _nesting: usize, _: &GenerationSettings) -> syn::Path {
-        parse_quote!(::embed_it::RecursiveChildCount)
-    }
-
+impl RecursiveChildCountTrait {
     fn impl_body(
         &self,
         ctx: &mut GenerateContext<'_>,
-        _entries: &[EntryTokens],
         index: &[IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         if ctx.entry.kind() != EntryKind::Dir {
@@ -36,10 +31,25 @@ impl EmbeddedTrait for RecursiveChildCountTrait {
         let method = method();
         let len = index.len();
         Ok(quote! {
-            fn #method(&self) -> usize {
+            pub fn #method(&self) -> usize {
                 #len
             }
         })
+    }
+}
+
+impl EmbeddedTrait for RecursiveChildCountTrait {
+    fn path(&self, _nesting: usize, _: &GenerationSettings) -> syn::Path {
+        parse_quote!(::embed_it::RecursiveChildCount)
+    }
+
+    fn impl_body(
+        &self,
+        ctx: &mut GenerateContext<'_>,
+        _entries: &[EntryTokens],
+        index: &[IndexTokens],
+    ) -> Option<Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>> {
+        Some(self.impl_body(ctx, index))
     }
 
     fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
@@ -48,5 +58,19 @@ impl EmbeddedTrait for RecursiveChildCountTrait {
 
     fn id(&self) -> &'static str {
         "RecursiveChildCount"
+    }
+
+    fn impl_trait_body(
+        &self,
+        _ctx: &mut GenerateContext<'_>,
+        _entries: &[EntryTokens],
+        _index: &[IndexTokens],
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
+        let method = method();
+        Ok(quote! {
+            fn #method(&self) -> usize {
+                self.#method()
+            }
+        })
     }
 }

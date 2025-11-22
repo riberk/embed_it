@@ -13,18 +13,11 @@ use super::EmbeddedTrait;
 #[derive(Debug)]
 pub struct EntriesTrait;
 
-impl EmbeddedTrait for EntriesTrait {
-    fn path(&self, level: usize, settings: &GenerationSettings) -> syn::Path {
-        let dir = settings.dir_entry_param(level);
-        let file = settings.file_entry_param(level);
-        parse_quote!(::embed_it::Entries<#dir, #file>)
-    }
-
+impl EntriesTrait {
     fn impl_body(
         &self,
         ctx: &mut GenerateContext<'_>,
         entries: &[EntryTokens],
-        _index: &[IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         if ctx.entry.kind() != EntryKind::Dir {
             return Err(MakeEmbeddedTraitImplementationError::UnsupportedEntry {
@@ -47,13 +40,30 @@ impl EmbeddedTrait for EntriesTrait {
         });
 
         Ok(quote! {
-            fn entries(&self) -> &'static [#entry_path] {
+            pub fn entries(&self) -> &'static [#entry_path] {
                 const VALUE: &[#entry_path] = &[
                     #entries
                 ];
                 VALUE
             }
         })
+    }
+}
+
+impl EmbeddedTrait for EntriesTrait {
+    fn path(&self, level: usize, settings: &GenerationSettings) -> syn::Path {
+        let dir = settings.dir_entry_param(level);
+        let file = settings.file_entry_param(level);
+        parse_quote!(::embed_it::Entries<#dir, #file>)
+    }
+
+    fn impl_body(
+        &self,
+        ctx: &mut GenerateContext<'_>,
+        entries: &[EntryTokens],
+        _index: &[IndexTokens],
+    ) -> Option<Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>> {
+        Some(self.impl_body(ctx, entries))
     }
 
     fn definition(&self, _: &GenerationSettings) -> Option<proc_macro2::TokenStream> {
@@ -62,5 +72,19 @@ impl EmbeddedTrait for EntriesTrait {
 
     fn id(&self) -> &'static str {
         "Entries"
+    }
+
+    fn impl_trait_body(
+        &self,
+        ctx: &mut GenerateContext<'_>,
+        _: &[EntryTokens],
+        _: &[IndexTokens],
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
+        let entry_path = &ctx.settings.entry_path(ctx.level);
+        Ok(quote! {
+            fn entries(&self) -> &'static [#entry_path] {
+                self.entries()
+            }
+        })
     }
 }

@@ -12,16 +12,10 @@ use super::MakeEmbeddedTraitImplementationError;
 #[derive(Debug)]
 pub struct ContentTrait;
 
-impl EmbeddedTrait for ContentTrait {
-    fn path(&self, _nesting: usize, _: &GenerationSettings) -> syn::Path {
-        parse_quote!(::embed_it::Content)
-    }
-
+impl ContentTrait {
     fn impl_body(
         &self,
         ctx: &mut GenerateContext<'_>,
-        _entries: &[EntryTokens],
-        _index: &[IndexTokens],
     ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
         if ctx.entry.kind() != EntryKind::File {
             return Err(MakeEmbeddedTraitImplementationError::UnsupportedEntry {
@@ -32,9 +26,37 @@ impl EmbeddedTrait for ContentTrait {
 
         let origin = &ctx.entry.as_ref().value().path().origin;
         Ok(quote! {
-            fn content(&self) -> &'static [u8] {
+            pub fn content(&self) -> &'static [u8] {
                 const VALUE: &[u8] = include_bytes!(#origin);
                 VALUE
+            }
+        })
+    }
+}
+
+impl EmbeddedTrait for ContentTrait {
+    fn path(&self, _nesting: usize, _: &GenerationSettings) -> syn::Path {
+        parse_quote!(::embed_it::Content)
+    }
+
+    fn impl_body(
+        &self,
+        ctx: &mut GenerateContext<'_>,
+        _entries: &[EntryTokens],
+        _index: &[IndexTokens],
+    ) -> Option<Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError>> {
+        Some(self.impl_body(ctx))
+    }
+
+    fn impl_trait_body(
+        &self,
+        _ctx: &mut crate::embed::GenerateContext<'_>,
+        _entries: &[crate::embed::EntryTokens],
+        _index: &[crate::embed::IndexTokens],
+    ) -> Result<proc_macro2::TokenStream, MakeEmbeddedTraitImplementationError> {
+        Ok(quote! {
+            fn content(&self) -> &'static [u8] {
+                self.content()
             }
         })
     }
