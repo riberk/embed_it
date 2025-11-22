@@ -4,6 +4,8 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     sync::OnceLock,
+    thread,
+    time::Duration,
 };
 
 use syn::DeriveInput;
@@ -66,6 +68,8 @@ pub fn tests_dir() -> &'static Path {
         if !path.is_dir() {
             panic!("'{:?}' dir must be a dir", &path);
         }
+        wait_exists(&path);
+
         path
     })
     .as_path()
@@ -80,6 +84,7 @@ pub fn create_file(path: impl AsRef<Path>, content: &[u8]) {
         .unwrap_or_else(|e| panic!("Unable to open file '{path:?}': {e:#?}"))
         .write_all(content)
         .unwrap_or_else(|e| panic!("Unable to write a content into '{path:?}': {e:#?}"));
+    wait_exists(path);
 }
 
 pub fn remove_and_create_dir_all(path: impl AsRef<Path>) {
@@ -94,12 +99,43 @@ pub fn create_dir_all(path: impl AsRef<Path>) {
     let path = path.as_ref();
     std::fs::create_dir_all(path)
         .unwrap_or_else(|e| panic!("Unable to create dir '{path:?}': {e:#?}"));
+    wait_exists(path);
 }
 
 pub fn remove_dir_all(path: impl AsRef<Path>) {
     let path = path.as_ref();
     std::fs::remove_dir_all(path)
         .unwrap_or_else(|e| panic!("Unable to remove dir '{path:?}': {e:#?}"));
+    wait_does_not_exist(path);
+}
+
+fn wait_exists(path: &Path) {
+    // CI fs is really slow and may fail after creation
+    while !path.exists() {
+        thread::sleep(Duration::from_millis(50));
+    }
+
+    while !std::fs::read_dir(path.parent().expect("no parent"))
+        .expect("unable to read parent")
+        .flatten()
+        .any(|e| e.path() == path)
+    {
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+fn wait_does_not_exist(path: &Path) {
+    // CI fs is really slow and may fail after creation
+    while path.exists() {
+        thread::sleep(Duration::from_millis(50));
+    }
+
+    while std::fs::read_dir(path.parent().expect("no parent"))
+        .expect("unable to read parent")
+        .flatten()
+        .any(|e| e.path() == path)
+    {
+        thread::sleep(Duration::from_millis(50));
+    }
 }
 
 #[macro_export]
