@@ -1,5 +1,23 @@
 # Changelog
 
+## [7.0.0] - 2025-11-22
+
+### 🚀 Features
+
+- Generate trait methods directly on structs ([b53293b](b53293b9ae0b8abad3a021dad7135d81fc278da3))
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Fix clippy warnings ([93e5245](93e52456e86f1ad141e7df4f87bc478c3548ef25))
+
+- Update dependecies ([40d9b89](40d9b89995e611463b25bce6f8d0467e5cf8b1b2))
+
+- [**breaking**] Mark as major release ([76cdb14](76cdb14c69b2b2bcfeb9986102fd6af4284b8040))
+
+- Update dependencies ([b557692](b5576924e6ede5fd78f191267173be684adfe607))
+
+
 ## [6.0.0] - 2025-03-13
 
 ### ⚙️ Miscellaneous Tasks
