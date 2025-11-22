@@ -409,7 +409,6 @@ mod lib {
     )]
     pub struct Assets;
 
-    #[test]
     fn main() {
         use hex_literal::hex;
 
