@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.1.0] - 2025-11-22
+
+### 🚀 Features
+
+- Better feature gates ([6c3efb3](6c3efb3fcc4816a1df56f2556c412e65317df833))
+
+
 ## [7.0.0] - 2025-11-22
 
 ### 🚀 Features
