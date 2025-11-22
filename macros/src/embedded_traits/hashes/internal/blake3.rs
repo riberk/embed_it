@@ -1,6 +1,8 @@
 use blake3::Hasher;
 use syn::parse_quote;
 
+use crate::embedded_traits::hashes::ids;
+
 use super::{HashAlg, HashTrait};
 
 #[derive(Debug)]
@@ -31,7 +33,7 @@ impl super::Hasher for Blake3Hasher {
 
 impl HashAlg for Blake3HashAlg {
     fn id(&self) -> &'static str {
-        super::ids::BLAKE3.id
+        ids::BLAKE3.id
     }
 
     fn trait_path(&self) -> syn::Path {

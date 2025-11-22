@@ -1,10 +1,12 @@
 use sha1::Sha1;
 use syn::parse_quote;
 
+use crate::embedded_traits::hashes::ids;
+
 use super::{HashTrait, digest::DigestHashAlg};
 
 pub const SHA1: &HashTrait<DigestHashAlg<Sha1>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA1.id,
+    ids::SHA1.id,
     || parse_quote!(::embed_it::Sha1Hash),
     || parse_quote!(sha1),
 ));

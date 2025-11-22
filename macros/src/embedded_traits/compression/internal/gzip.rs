@@ -1,7 +1,9 @@
 use flate2::{Compression, write::GzEncoder};
 use syn::parse_quote;
 
-use super::{CompressionAlg, CompressionTrait, Compressor, FinalizeCompressorError, ids};
+use crate::embedded_traits::compression::ids;
+
+use super::{CompressionAlg, CompressionTrait, Compressor, FinalizeCompressorError};
 
 #[derive(Debug)]
 pub struct Gzip;

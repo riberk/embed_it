@@ -1,28 +1,30 @@
 use sha3::{Sha3_224, Sha3_256, Sha3_384, Sha3_512};
 use syn::parse_quote;
 
+use crate::embedded_traits::hashes::ids;
+
 use super::{HashTrait, digest::DigestHashAlg};
 
 pub const SHA3_224: &HashTrait<DigestHashAlg<Sha3_224>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA3_224.id,
+    ids::SHA3_224.id,
     || parse_quote!(::embed_it::Sha3_224Hash),
     || parse_quote!(sha3_224),
 ));
 
 pub const SHA3_256: &HashTrait<DigestHashAlg<Sha3_256>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA3_256.id,
+    ids::SHA3_256.id,
     || parse_quote!(::embed_it::Sha3_256Hash),
     || parse_quote!(sha3_256),
 ));
 
 pub const SHA3_384: &HashTrait<DigestHashAlg<Sha3_384>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA3_384.id,
+    ids::SHA3_384.id,
     || parse_quote!(::embed_it::Sha3_384Hash),
     || parse_quote!(sha3_384),
 ));
 
 pub const SHA3_512: &HashTrait<DigestHashAlg<Sha3_512>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA3_512.id,
+    ids::SHA3_512.id,
     || parse_quote!(::embed_it::Sha3_512Hash),
     || parse_quote!(sha3_512),
 ));

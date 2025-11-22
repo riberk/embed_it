@@ -1,10 +1,12 @@
 use md5::Md5;
 use syn::parse_quote;
 
+use crate::embedded_traits::hashes::ids;
+
 use super::{HashTrait, digest::DigestHashAlg};
 
 pub const MD5: &HashTrait<DigestHashAlg<Md5>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::MD5.id,
+    ids::MD5.id,
     || parse_quote!(::embed_it::Md5Hash),
     || parse_quote!(md5),
 ));

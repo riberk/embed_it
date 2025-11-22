@@ -1,28 +1,30 @@
 use sha2::{Sha224, Sha256, Sha384, Sha512};
 use syn::parse_quote;
 
+use crate::embedded_traits::hashes::ids;
+
 use super::{HashTrait, digest::DigestHashAlg};
 
 pub const SHA2_224: &HashTrait<DigestHashAlg<Sha224>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA2_224.id,
+    ids::SHA2_224.id,
     || parse_quote!(::embed_it::Sha2_224Hash),
     || parse_quote!(sha2_224),
 ));
 
 pub const SHA2_256: &HashTrait<DigestHashAlg<Sha256>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA2_256.id,
+    ids::SHA2_256.id,
     || parse_quote!(::embed_it::Sha2_256Hash),
     || parse_quote!(sha2_256),
 ));
 
 pub const SHA2_384: &HashTrait<DigestHashAlg<Sha384>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA2_384.id,
+    ids::SHA2_384.id,
     || parse_quote!(::embed_it::Sha2_384Hash),
     || parse_quote!(sha2_384),
 ));
 
 pub const SHA2_512: &HashTrait<DigestHashAlg<Sha512>> = &HashTrait::new(DigestHashAlg::new(
-    super::ids::SHA2_512.id,
+    ids::SHA2_512.id,
     || parse_quote!(::embed_it::Sha2_512Hash),
     || parse_quote!(sha2_512),
 ));
