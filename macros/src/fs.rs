@@ -204,7 +204,25 @@ impl EntryIdent {
         case: Case,
         names: impl FnOnce(&str) -> Option<usize>,
     ) -> StrIdent {
-        let mut candidate = ident_key.to_case(case);
+        let candidate = {
+            let delim = case.delim();
+            let mut candidate = ident_key;
+            if delim.is_empty() {
+                candidate
+            } else {
+                while let Some(s) = candidate.strip_prefix(delim) {
+                    candidate = s;
+                }
+
+                while let Some(s) = candidate.strip_suffix(delim) {
+                    candidate = s;
+                }
+
+                candidate
+            }
+        };
+
+        let mut candidate = candidate.to_case(case);
         if prefixed {
             candidate.insert(0, '_');
         }
